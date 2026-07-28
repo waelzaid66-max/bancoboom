@@ -60,17 +60,19 @@ const nextConfig: NextConfig = {
   ],
   ...(process.env.NEXT_STANDALONE === "true" ? { output: "standalone" as const } : {}),
   async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: [
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
-        ],
-      },
+    // X-Frame-Options: SAMEORIGIN is correct for production (banco.today).
+    // In Replit dev the preview pane is a cross-origin iframe — omit the header
+    // so the preview renders. Production gets it back via REPLIT_DOMAINS being absent.
+    const isDev = process.env.NODE_ENV !== "production" || !!process.env.REPLIT_DOMAINS;
+    const baseHeaders = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
     ];
+    if (!isDev) {
+      baseHeaders.unshift({ key: "X-Frame-Options", value: "SAMEORIGIN" });
+    }
+    return [{ source: "/:path*", headers: baseHeaders }];
   },
   async rewrites() {
     const apiBase = apiRewriteTarget();
