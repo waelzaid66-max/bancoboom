@@ -79,3 +79,4 @@
 - [Stay black header lock](banco-stay-header-lock.md) — owner decision FINAL: black StaysHomeHeader stays, guard-locked 46/46; fake web 67px topPad banned → Math.max(insets.top, web?12:0)
 - [Clerk multi-step sign-in](clerk-multistep-signin.md) — live tenant demands email 2nd factor after password even though env flags say not required; handling only status==="complete" locks out ALL users; social dict empty = dashboard action
 - [GitHub push auth & clean handoff](github-push-auth-stale.md) — PUSH_REJECTED hides real error (diagnose via direct push); stale token = user reconnects GitHub; dirty history → commit-tree snapshot
+- [Long builds need console workflows](long-build-detached-shell.md) — >300s builds: `setsid nohup` DISCONNECTS the container (kills all workflows); use configureWorkflow outputType console + poll the tee'd log
