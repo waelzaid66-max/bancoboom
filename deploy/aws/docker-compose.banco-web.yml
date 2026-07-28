@@ -1,0 +1,50 @@
+# BANCO consumer web (Next.js standalone) — isolated from api/mobile deploy.
+#
+# Typical staging: ALB → consumer-web:3000, API on separate service/origin.
+# Safe flags baked at build time (see deploy/aws/env/.env.banco-web.staging.example).
+#
+#   docker compose -f deploy/aws/docker-compose.banco-web.yml \
+#     --env-file deploy/aws/env/.env.banco-web.staging.local up -d --build
+
+name: banco-consumer-web
+
+services:
+  consumer-web:
+    build:
+      context: ../..
+      dockerfile: deploy/aws/Dockerfile.banco-web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+        NEXT_PUBLIC_MARKET_URL: ${NEXT_PUBLIC_MARKET_URL:-}
+        NEXT_PUBLIC_ADMIN_URL: ${NEXT_PUBLIC_ADMIN_URL:-}
+        NEXT_PUBLIC_APP_ANDROID_URL: ${NEXT_PUBLIC_APP_ANDROID_URL:-}
+        NEXT_PUBLIC_APP_IOS_URL: ${NEXT_PUBLIC_APP_IOS_URL:-}
+        NEXT_PUBLIC_WEB_SEARCH_LIVE: ${NEXT_PUBLIC_WEB_SEARCH_LIVE:-false}
+        NEXT_PUBLIC_WEB_SEARCH_MAP: ${NEXT_PUBLIC_WEB_SEARCH_MAP:-false}
+        NEXT_PUBLIC_WEB_MARKET_COPY: ${NEXT_PUBLIC_WEB_MARKET_COPY:-false}
+        NEXT_PUBLIC_SEARCH_ENABLED: ${NEXT_PUBLIC_SEARCH_ENABLED:-true}
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+        NEXT_PUBLIC_CLERK_PROXY_URL: ${NEXT_PUBLIC_CLERK_PROXY_URL:-}
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+    image: banco-consumer-web:latest
+    restart: always
+    ports:
+      - "${CONSUMER_WEB_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      # Phase 6 kill-switch (runtime — no image rebuild). false → /maintenance
+      WEB_PLUG_ENABLED: ${WEB_PLUG_ENABLED:-true}
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3

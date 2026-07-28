@@ -1,0 +1,70 @@
+{
+  "probed_at": "2026-07-10T02:04:33.264Z",
+  "endpoints": [
+    {
+      "name": "search_market_SA",
+      "method": "GET",
+      "url": "https://banco-ca-oom.replit.app/api/v1/search?limit=1&market_country=SA",
+      "http_status": 200,
+      "note": "Bare /v1/search returns SPA HTML; live API is under /api/v1",
+      "first_result_id": "20e9df18-d4a5-4df0-b0fc-44213065afd6",
+      "first_result_title": "Renault Duster 2023 - 2020",
+      "first_result_location": "Ain Sokhna",
+      "price_display": "1.42M EGP"
+    },
+    {
+      "name": "search_market_EG",
+      "method": "GET",
+      "url": "https://banco-ca-oom.replit.app/api/v1/search?limit=1&market_country=EG",
+      "http_status": 200,
+      "first_result_id": "20e9df18-d4a5-4df0-b0fc-44213065afd6",
+      "first_result_title": "Renault Duster 2023 - 2020",
+      "first_result_location": "Ain Sokhna",
+      "price_display": "1.42M EGP"
+    },
+    {
+      "name": "search_industrial_material_steel",
+      "method": "GET",
+      "url": "https://banco-ca-oom.replit.app/api/v1/search?category=industrial&industrial_type=raw_material&material=steel&limit=1",
+      "http_status": 200,
+      "material_param": "steel",
+      "material_behavior": "accepted_without_400_but_appears_ignored",
+      "first_result_id": "557a5047-bbe4-4d7a-84ab-4ab1bf4c528f",
+      "first_result_industrial_type": "raw_material",
+      "first_result_title_hint": "HDPE raw material listing (not steel-specific)",
+      "same_as_without_material": true
+    },
+    {
+      "name": "search_industrial_no_material",
+      "method": "GET",
+      "url": "https://banco-ca-oom.replit.app/api/v1/search?category=industrial&industrial_type=raw_material&limit=1",
+      "http_status": 200,
+      "first_result_id": "557a5047-bbe4-4d7a-84ab-4ab1bf4c528f"
+    },
+    {
+      "name": "map_clusters_probe",
+      "method": "GET",
+      "urls_tried": [
+        "https://banco-ca-oom.replit.app/api/v1/search/map-clusters?market_country=SA&limit=5",
+        "https://banco-ca-oom.replit.app/api/v1/map/clusters?market_country=SA",
+        "https://banco-ca-oom.replit.app/api/v1/search/clusters?market_country=SA",
+        "https://banco-ca-oom.replit.app/api/v1/search?limit=5&view=map&market_country=SA"
+      ],
+      "dedicated_cluster_routes": "404 NOT_FOUND",
+      "view_map_fallback": "200 normal search list (no cluster payload observed)"
+    }
+  ],
+  "observations": [
+    "proof-create-fields.mjs exit 0: all assertions passed (local/repo proof only).",
+    "GET /v1/search on host returns landing SPA HTML (200); JSON API lives at /api/v1/search.",
+    "market_country=SA and market_country=EG return identical first hit (same listing id, Ain Sokhna / EGP) — market filter looks stale (M23).",
+    "material=steel returns HTTP 200 (not 400); top industrial raw_material hit matches query without material (HDPE) — material filter not evidenced as applied.",
+    "Dedicated map-cluster routes 404; view=map does not expose a distinct clusters response in this probe."
+  ],
+  "verdict": "STALE",
+  "local_proof": {
+    "script": "audit/mobile/scripts/proof-create-fields.mjs",
+    "exit_code": 0,
+    "output": "proof-create-fields: all assertions passed"
+  }
+}

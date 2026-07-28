@@ -1,0 +1,30 @@
+{
+  "probed_at": "2026-07-10",
+  "host": "https://banco-ca-oom.replit.app",
+  "healthz": { "status": 200, "body": { "status": "ok" } },
+  "search_market_country": {
+    "eg_eq_sa": true,
+    "eg_ids": [
+      "20e9df18-d4a5-4df0-b0fc-44213065afd6",
+      "384d098c-8060-4559-a837-9dbf479d1544",
+      "85b407c4-6283-4cd5-9571-456074acdf2e"
+    ],
+    "sa_ids": [
+      "20e9df18-d4a5-4df0-b0fc-44213065afd6",
+      "384d098c-8060-4559-a837-9dbf479d1544",
+      "85b407c4-6283-4cd5-9571-456074acdf2e"
+    ],
+    "invalid_EGYPT_status": 200,
+    "invalid_EGYPT_returns_data": true,
+    "verdict": "STALE — market_country ignored; ISO validation absent"
+  },
+  "map_clusters": {
+    "eg_clusters": 18,
+    "sa_clusters": 18,
+    "eg_eq_sa": true,
+    "keys": ["lat", "lng", "count", "listing_id"],
+    "has_is_bookable": false,
+    "has_price_display": false,
+    "verdict": "STALE — missing M24 enrichment fields"
+  }
+}

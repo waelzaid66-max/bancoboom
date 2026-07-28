@@ -1,0 +1,211 @@
+import type {
+  SearchListingsFuelType,
+  SearchListingsTransmission,
+  SearchListingsIndustry,
+  SearchListingsOriginType,
+} from "@workspace/api-client-react";
+
+import type { Category } from "@workspace/taxonomy/categories";
+
+/**
+ * Filter params a single engine chip applies to the feed/search APIs. Every
+ * field maps 1:1 to a real, backend-supported query param (see api-server
+ * SearchService.buildAttributeConditions); an empty object is the "all" engine.
+ *
+ * We intentionally model ONLY filters backed by real data. Rent/sale are real
+ * offer_type values. Car "import" maps to origin_type=imported (same industrial
+ * origin axis). Do not invent engines with no API param.
+ *
+ * Each engine chip carries EXACTLY ONE meaningful param (besides "all"): facet
+ * counts are marginal (per-value), not intersections, so a multi-param chip
+ * could still resolve to zero inventory and a "data-presence" gate could not
+ * honestly hide it. Keep one param per chip.
+ */
+export interface EngineParams {
+  condition?: "new" | "used";
+  payment_plan?: "installment" | "bank" | "direct" | "islamic";
+  // Real-estate offer type — sale (تمليك / ownership) vs rent (إيجار).
+  offer_type?: "sale" | "rent";
+  property_type?: string;
+  finishing_type?: string;
+  compound?: boolean;
+  furnished?: boolean;
+  fuel_type?: SearchListingsFuelType;
+  transmission?: SearchListingsTransmission;
+  industry?: SearchListingsIndustry;
+  origin_type?: SearchListingsOriginType;
+  min_year?: number;
+  max_year?: number;
+}
+
+export interface EngineDef {
+  /** Stable id, used for selection state and testIDs. */
+  key: string;
+  /** i18n key for the chip label. */
+  i18nKey: string;
+  /** Real backend filter params; {} for the leading "all" engine. */
+  params: EngineParams;
+  /**
+   * When true the chip only renders after /facets confirms it has live
+   * inventory (fail-CLOSED). Core chips leave this falsy so they fail OPEN —
+   * a transient facet error must never hide real, long-standing inventory.
+   * Fine real-estate facets (property types, etc.) use this; car fuel /
+   * transmission are FilterSheet-only and are not engines.
+   */
+  requiresFacet?: boolean;
+}
+
+const ALL_ENGINE: EngineDef = {
+  key: "all",
+  i18nKey: "home.engines.all",
+  params: {},
+};
+
+// Cars: journey engines only (condition / import / financing).
+// Fuel + transmission live in FilterSheet alone — one button family = one app;
+// duplicating them as engines mixed chrome with attribute refine.
+const CAR_ENGINES: EngineDef[] = [
+  ALL_ENGINE,
+  { key: "new", i18nKey: "home.engines.new", params: { condition: "new" } },
+  { key: "used", i18nKey: "home.engines.used", params: { condition: "used" } },
+  {
+    key: "import",
+    i18nKey: "home.engines.import",
+    params: { origin_type: "imported" },
+  },
+  { key: "bank", i18nKey: "home.engines.bank", params: { payment_plan: "bank" } },
+  {
+    key: "islamic",
+    i18nKey: "home.engines.islamic",
+    params: { payment_plan: "islamic" },
+  },
+];
+
+// Real estate: the primary EG/Gulf split is offer type (تمليك sale / إيجار rent)
+// — surfaced first, right after "all" (sale before rent). This is the FUNDAMENTAL
+// real-estate axis (like Booking's buy/rent), so it is ALWAYS visible — not
+// fail-closed — even before inventory exists: a buyer must always see that rent
+// and ownership are supported, and an empty "no rentals yet" page is expected +
+// honest at launch (and nudges supply). The FINE facets below (furnished, laws,
+// payment plans) stay data-gated so they never offer an empty refinement.
+const REAL_ESTATE_ENGINES: EngineDef[] = [
+  ALL_ENGINE,
+  {
+    key: "sale",
+    i18nKey: "home.engines.sale",
+    params: { offer_type: "sale" },
+  },
+  {
+    key: "rent",
+    i18nKey: "home.engines.rent",
+    params: { offer_type: "rent" },
+  },
+  {
+    key: "villa",
+    i18nKey: "home.engines.villa",
+    params: { property_type: "villa" },
+  },
+  {
+    key: "apartment",
+    i18nKey: "home.engines.apartment",
+    params: { property_type: "apartment" },
+  },
+  {
+    key: "land",
+    i18nKey: "home.engines.land",
+    params: { property_type: "land" },
+    requiresFacet: true,
+  },
+  {
+    key: "hotel",
+    i18nKey: "home.engines.hotel",
+    params: { property_type: "hotel" },
+    requiresFacet: true,
+  },
+  {
+    key: "duplex",
+    i18nKey: "home.engines.duplex",
+    params: { property_type: "duplex" },
+    requiresFacet: true,
+  },
+  {
+    key: "penthouse",
+    i18nKey: "home.engines.penthouse",
+    params: { property_type: "penthouse" },
+    requiresFacet: true,
+  },
+  {
+    key: "studio",
+    i18nKey: "home.engines.studio",
+    params: { property_type: "studio" },
+    requiresFacet: true,
+  },
+  {
+    key: "townhouse",
+    i18nKey: "home.engines.townhouse",
+    params: { property_type: "townhouse" },
+    requiresFacet: true,
+  },
+  {
+    key: "chalet",
+    i18nKey: "home.engines.chalet",
+    params: { property_type: "chalet" },
+    requiresFacet: true,
+  },
+  {
+    key: "office",
+    i18nKey: "home.engines.office",
+    params: { property_type: "office" },
+    requiresFacet: true,
+  },
+  {
+    key: "shop",
+    i18nKey: "home.engines.shop",
+    params: { property_type: "shop" },
+    requiresFacet: true,
+  },
+  {
+    key: "warehouse",
+    i18nKey: "home.engines.warehouse",
+    params: { property_type: "warehouse" },
+    requiresFacet: true,
+  },
+  {
+    key: "commercial_land",
+    i18nKey: "home.engines.commercialLand",
+    params: { property_type: "commercial_land" },
+    requiresFacet: true,
+  },
+  {
+    key: "compound",
+    i18nKey: "home.engines.compound",
+    params: { compound: true },
+  },
+  {
+    key: "direct",
+    i18nKey: "home.engines.direct",
+    params: { payment_plan: "direct" },
+  },
+  {
+    key: "islamic",
+    i18nKey: "home.engines.islamic",
+    params: { payment_plan: "islamic" },
+  },
+  {
+    key: "furnished",
+    i18nKey: "home.engines.furnished",
+    params: { furnished: true },
+  },
+];
+
+/** Engine list for a browse category, or null when it has no engine bar. */
+export function enginesForCategory(cat: Category): EngineDef[] | null {
+  if (cat === "car") return CAR_ENGINES;
+  if (cat === "real_estate") return REAL_ESTATE_ENGINES;
+  return null;
+}
+
+/** Resolves a selected engine by key within a category (undefined if none). */
+export function engineByKey(cat: Category, key: string): EngineDef | undefined {
+  return enginesForCategory(cat)?.find((e) => e.key === key);
+}

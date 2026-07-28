@@ -1,0 +1,31 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "preinstall": "node scripts/preinstall-enforce-pnpm.mjs",
+    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "typecheck:website": "pnpm --filter @workspace/design-tokens run typecheck && pnpm --filter @workspace/search-contract run typecheck && pnpm --filter @workspace/landing run typecheck && pnpm --filter @workspace/banco-web run typecheck && pnpm --filter @workspace/banco-website run typecheck",
+    "lint": "eslint scripts --max-warnings 0",
+    "lint:website": "eslint artifacts/banco-web artifacts/banco-website artifacts/landing --max-warnings 0",
+    "lint:report": "eslint scripts artifacts/api-server/src lib/db/src",
+    "ops:website-ci": "node scripts/website-ci-local.mjs",
+    "ops:website-staging-prep": "node scripts/website-staging-prep-audit.mjs",
+    "ops:website-staging-smoke": "node scripts/website-staging-smoke.mjs",
+    "ops:website-soft-launch-prep": "node scripts/website-soft-launch-prep-audit.mjs",
+    "confidence": "node scripts/production-confidence-check.mjs"
+  },
+  "private": true,
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "eslint": "^9.39.4",
+    "globals": "^14.0.0",
+    "prettier": "^3.8.3",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.63.0"
+  },
+  "dependencies": {}
+}

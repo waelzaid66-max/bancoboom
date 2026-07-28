@@ -1,0 +1,425 @@
+/* Brand CSS variables are injected from @workspace/design-tokens in layout.tsx */
+
+:root {
+  --banco-font: "Cairo", "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--banco-bg);
+  color: var(--banco-fg);
+  font-family: var(--banco-font);
+}
+
+a {
+  color: var(--banco-primary);
+}
+
+.skip-to-main {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  background: var(--banco-primary);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 0 0 8px 0;
+}
+
+.skip-to-main:focus {
+  left: 0;
+}
+
+/* Phase 1 — brand-first hero (red/black BANCO identity; full-bleed) */
+.banco-brand-hero {
+  position: relative;
+  width: 100%;
+  min-height: min(72vh, 560px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1.25rem 3rem;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 0%, rgba(232, 0, 45, 0.28), transparent 55%),
+    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(122, 12, 18, 0.35), transparent 50%),
+    linear-gradient(180deg, #0a0a0a 0%, #000 55%, #050505 100%);
+}
+
+.banco-brand-hero__inner {
+  position: relative;
+  z-index: 1;
+  max-width: 720px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  animation: banco-hero-in 0.7s ease-out both;
+}
+
+.banco-brand-hero__title {
+  margin: 0.35rem 0 0;
+  font-size: clamp(1.55rem, 4.2vw, 2.35rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--banco-fg);
+}
+
+.banco-brand-hero__lede {
+  margin: 0;
+  max-width: 34rem;
+  color: var(--banco-muted);
+  font-size: clamp(0.95rem, 2.2vw, 1.1rem);
+  line-height: 1.65;
+}
+
+.banco-brand-hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.banco-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.65rem 1.25rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.banco-btn--primary {
+  background: var(--banco-primary);
+  color: #fff;
+}
+
+.banco-btn--primary:hover {
+  filter: brightness(1.06);
+}
+
+.banco-btn--ghost {
+  background: transparent;
+  color: var(--banco-fg);
+  border-color: var(--banco-border);
+}
+
+.banco-btn--ghost:hover {
+  border-color: var(--banco-primary);
+  color: var(--banco-primary);
+}
+
+.banco-btn:focus-visible {
+  outline: 2px solid var(--banco-primary);
+  outline-offset: 3px;
+}
+
+@keyframes banco-hero-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Phase 5 — responsive site chrome */
+.banco-site-header {
+  border-bottom: 1px solid var(--banco-border);
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.banco-header-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0.65rem 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.banco-header-tools {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.banco-menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--banco-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--banco-fg);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.banco-menu-toggle:focus-visible {
+  outline: 2px solid var(--banco-primary);
+  outline-offset: 2px;
+}
+
+.banco-menu-toggle__icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.banco-mobile-nav {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+}
+
+.banco-mobile-nav[hidden] {
+  display: none !important;
+}
+
+.banco-mobile-nav__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+}
+
+.banco-mobile-nav__panel {
+  position: absolute;
+  top: 0;
+  inset-inline-end: 0;
+  width: min(100%, 360px);
+  height: 100%;
+  overflow-y: auto;
+  background: #0a0a0a;
+  border-inline-start: 1px solid var(--banco-border);
+  padding: 1rem 1.1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: banco-drawer-in 0.2s ease-out both;
+}
+
+.banco-mobile-nav__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.banco-mobile-nav__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.banco-mobile-nav__label {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--banco-muted);
+}
+
+.banco-mobile-nav__link {
+  display: block;
+  padding: 0.7rem 0.65rem;
+  min-height: 44px;
+  border-radius: 8px;
+  color: var(--banco-fg);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.banco-mobile-nav__link[aria-current="page"],
+.banco-mobile-nav__link:hover {
+  background: rgba(232, 0, 45, 0.12);
+  color: var(--banco-primary);
+}
+
+.banco-mobile-nav__muted {
+  color: var(--banco-muted);
+  font-size: 0.9rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.banco-mobile-nav__footer {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--banco-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.banco-mobile-nav__auth {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.banco-workspace-shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem;
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) 1fr;
+  gap: 1.5rem;
+}
+
+.banco-workspace-shell__title {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+}
+
+.banco-workspace-shell__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.banco-workspace-shell__main {
+  min-width: 0;
+}
+
+@keyframes banco-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+html[dir="rtl"] .banco-mobile-nav__panel {
+  animation-name: banco-drawer-in-rtl;
+}
+
+@keyframes banco-drawer-in-rtl {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .banco-desktop-nav {
+    display: none !important;
+  }
+
+  .banco-header-tools {
+    display: flex;
+  }
+
+  .banco-header-inner {
+    flex-wrap: nowrap;
+  }
+}
+
+@media (min-width: 901px) {
+  .banco-menu-toggle {
+    display: none;
+  }
+
+  .banco-header-tools__locale {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .banco-workspace-shell {
+    grid-template-columns: 1fr;
+    padding: 1.25rem 1rem;
+    gap: 1rem;
+  }
+
+  .banco-workspace-shell__title {
+    margin-bottom: 0.65rem;
+    font-size: 1.15rem;
+  }
+
+  .banco-workspace-shell__nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding-bottom: 0.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .banco-brand-hero {
+    min-height: min(68vh, 480px);
+    padding: 2.5rem 1rem 2rem;
+  }
+
+  .banco-menu-toggle__text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .banco-header-tools__locale {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .banco-brand-hero__inner {
+    animation: none;
+  }
+
+  .banco-btn {
+    transition: none;
+  }
+
+  .banco-mobile-nav__panel {
+    animation: none;
+  }
+}

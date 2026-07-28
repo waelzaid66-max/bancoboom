@@ -1,0 +1,38 @@
+kind = "mobile"
+previewPath = "/banco-mobile/"
+title = "BANCO Mobile"
+version = "1.0.0"
+id = "artifacts/banco-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/banco-mobile/" ]
+localPort = 23351
+
+[services.development]
+run = "pnpm --filter @workspace/banco-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/banco-mobile", "run", "build" ]
+
+[services.production.run]
+# Run node directly (not through pnpm) to avoid pnpm startup overhead that
+# caused intermittent port-open timeouts and SIGTERM during healthcheck window.
+# Mirrors the same pattern used by api-server ("we don't run through pnpm to
+# make startup faster in production").
+args = [ "node", "artifacts/banco-mobile/server/serve.js" ]
+
+[services.production.health.startup]
+# serve.js handles /status immediately with no I/O — fastest possible check.
+# BASE_PATH=/banco-mobile strips the prefix so the request lands on /status.
+path = "/banco-mobile/status"
+
+[services.env]
+PORT = "23351"
+BASE_PATH = "/banco-mobile/"

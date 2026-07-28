@@ -1,0 +1,61 @@
+name: Sync aws-virgen (full main)
+
+# Pushes a full merge of primary main into waelzaid66-max/aws-virgen (owner PAT required).
+# Add repository secret: AWS_VIRGEN_SYNC_TOKEN (classic PAT with repo scope on aws-virgen).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Annotated release tag to create/update on aws-virgen"
+        required: true
+        default: "v1.0.0-rc.2"
+      skip_manifest_commit:
+        description: "Skip committing manifest on primary (use if manifest already on main)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Merge main → aws-virgen
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout primary (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Require sync token
+        run: |
+          if [ -z "${{ secrets.AWS_VIRGEN_SYNC_TOKEN }}" ]; then
+            echo "::error::Set repository secret AWS_VIRGEN_SYNC_TOKEN (PAT with push to aws-virgen)."
+            exit 1
+          fi
+
+      - name: Generate sync manifest
+        if: ${{ inputs.skip_manifest_commit != true }}
+        run: node scripts/generate-aws-virgen-sync-manifest.mjs --tag "${{ inputs.tag }}"
+
+      - name: Commit manifest on primary (optional)
+        if: ${{ inputs.skip_manifest_commit != true }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add release/AWS_VIRGEN_SYNC_MANIFEST.json
+          if git diff --cached --quiet; then
+            echo "Manifest unchanged."
+          else
+            git commit -m "chore(release): aws-virgen sync manifest (${{ inputs.tag }})"
+            git push origin HEAD:main
+          fi
+
+      - name: Publish to aws-virgen
+        env:
+          AWS_VIRGEN_SYNC_TOKEN: ${{ secrets.AWS_VIRGEN_SYNC_TOKEN }}
+        run: |
+          chmod +x scripts/publish-aws-virgen-rc.sh
+          ./scripts/publish-aws-virgen-rc.sh "${{ inputs.tag }}"

@@ -1,0 +1,50 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api-server",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=\"/c/Users/waelz/tools/node:$PATH\" ESBUILD_BINARY_PATH=\"C:\\\\Users\\\\waelz\\\\tools\\\\esbuild-win32\\\\package\\\\esbuild.exe\" DATABASE_URL=\"postgresql://postgres:postgres@localhost:5433/banco_test\" PORT=3000; pnpm --filter @workspace/api-server run dev"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "banco-admin",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=\"/c/Users/waelz/tools/node:$PATH\" ESBUILD_BINARY_PATH=\"C:\\\\Users\\\\waelz\\\\tools\\\\esbuild-win32\\\\package\\\\esbuild.exe\"; pnpm --filter admin-os run dev -- --port 5173"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "banco-market",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=\"/c/Users/waelz/tools/node:$PATH\" ESBUILD_BINARY_PATH=\"C:\\\\Users\\\\waelz\\\\tools\\\\esbuild-win32\\\\package\\\\esbuild.exe\"; pnpm --filter dealer-os run dev -- --port 5174"
+      ],
+      "port": 5174
+    },
+    {
+      "name": "landing",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=\"/c/Users/waelz/tools/node:$PATH\" ESBUILD_BINARY_PATH=\"C:\\\\Users\\\\waelz\\\\tools\\\\esbuild-win32\\\\package\\\\esbuild.exe\"; pnpm --filter landing run dev -- --port 5175"
+      ],
+      "port": 5175
+    },
+    {
+      "name": "banco-mobile-web",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "export PATH=\"/c/Users/waelz/tools/node:$PATH\"; cd artifacts/banco-mobile && npx expo start --web --port 8081"
+      ],
+      "port": 8081
+    }
+  ]
+}

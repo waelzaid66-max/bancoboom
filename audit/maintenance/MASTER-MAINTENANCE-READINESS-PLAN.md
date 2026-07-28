@@ -1,0 +1,267 @@
+# خطة الصيانة والجاهزية الشاملة — BANCO OOM
+
+**آخر تحديث:** 2026-07-08 (closure wave `a8cc3e1`)  
+**الفرع على GitHub:** `main` @ `a8cc3e1`  
+**قرار الإصدار:** **GO WITH FIXES** (كود) · **NO GO** (متاجر حتى EAS production + جهاز)
+
+> **مبدأ العمل:** نُضيف ونُصلح دون هدم — لا حذف لمسارات أو فروع أو دول مدعومة. العقارات والأقسام متعددة الدول تبقى في التصنيف والإنشاء؛ الصيانة طبّقت **طبقة بحث إضافية** فوق ما هو موجود.
+
+**برنامج الجاهزية للإنتاج (21 مرحلة):** تتبّع منفصل في [`audit/production-readiness/README.md`](../production-readiness/README.md) — المرحلة 01 (البنية الأساسية) مكتملة بإصلاحات؛ المرحلة التالية الموصى بها: **02 — قاعدة البيانات والمخطط**.
+
+**حالة الأهداف الآن (موحّدة):** [`audit/production-readiness/FULL-READINESS-STATUS-PLAN.md`](../production-readiness/FULL-READINESS-STATUS-PLAN.md) — ما يحتاج صيانة، ما الناقص، Waves A–F نحو الإطلاق.
+
+---
+
+## 1. ملخص تنفيذي
+
+| البند | الحالة |
+|--------|--------|
+| أمان P0 (رفع ملفات، LIKE، رؤية المحذوفين، ACL) | ✅ منفّذ (`e24014b`) |
+| إصلاح CI (typecheck + build + ESLint) | ✅ GitHub Actions @ `49bcf62` |
+| رحلة رفع الصور/الفيديو → نشر إعلان | ✅ محسّنة (claims + رسائل خطأ) |
+| بحث صناعي (مرافق / مواد) | ✅ موجة 2 |
+| بحث عقارات (إيجار/تمليك، أنواع، نظام إيجار) | ✅ موجة 3 — **إضافة فقط** |
+| EAS (بناء متجر دون إرسال) | ✅ metadata + توثيق |
+| تقارير RC-1 + موجات الصيانة | ✅ في `audit/` و `release/` و `reports/` |
+| جرد المحفظة والفوترة (B0) | ✅ `WALLET-BILLING-FINANCE-AUDIT.md` |
+| دمج موجات 4–5 على `origin/main` | ✅ على `main` |
+| نشر AWS / GCP / المتاجر | ❌ **متعمّد — خارج النطاق حتى الجاهزية** |
+
+---
+
+## 2. ما تم صيانته وتحديثه (منفّذ — لا تعيد النقاش)
+
+### 2.1 أمان وإصلاحات حرجة (قبل الموجات)
+
+| المعرف | الوصف | الملفات المرجعية |
+|--------|--------|------------------|
+| C-01 | منع IDOR على رفع الملفات + جدول `upload_claims` | `audit/fixes/C-01-upload-idor.md` |
+| C-02 | تهريب wildcards في LIKE | `audit/fixes/C-02-like-wildcard.md` |
+| C-03 | إخفاء مستخدمين محذوفين من الخلاصة | `audit/fixes/C-03-deleted-users-visibility.md` |
+| H-03 | ACL بمعرّف المالك الصحيح | `audit/fixes/H-03-acl-owner-clerk-id.md` |
+
+**Commit:** `e24014b`
+
+### 2.2 الموجة 1 — رفع، CI، صحة، EAS
+
+| التحسين | لماذا | التوثيق |
+|---------|--------|---------|
+| `LIKE … ESCAPE` عبر `sql` | إصلاح فشل CI على Drizzle | `WAVE-1-UPLOAD-CI-EAS.md` |
+| `/api/healthz` قبل Clerk | منع 500 على المراقبة | نفس الملف |
+| تمديد claim 60 دقيقة بعد verify | وقت كافٍ لإكمال إنشاء الإعلان | `uploadClaims.ts` |
+| رسائل خطأ رفع مميزة (انتهاء/حجم/شبكة) | UX إنشاء الإعلان | `lib/upload.ts`, `create.tsx` |
+| Drizzle على Windows | `fileURLToPath` | `lib/db/drizzle.config.ts` |
+| `ios.buildNumber` + `autoIncrement` | جاهزية EAS | `eas.json`, `app.json` |
+
+**Commit:** `3607c0a`
+
+### 2.3 الموجة 2 — بحث صناعي
+
+| التحسين | ملاحظة |
+|---------|--------|
+| `industrialType` في معاملات البحث | يطابق API `industrial_type` |
+| `IndustrialSubChips` على تبويب البحث | نفس نمط Home و Industry Hub |
+| شرائح محلي/مستورد | كما في Industry Hub |
+| المساعد → `/(tabs)/search` | سطح بحث واحد |
+
+**Commit:** `3607c0a` (مع الموجة 1)
+
+### 2.4 الموجة 3 — عقارات + توحيد مسار البحث + EAS
+
+| التحسين | ملاحظة |
+|---------|--------|
+| شرائح **نظام الإيجار** inline عند إيجار (مخفية عند تمليك) | نفس `RENTAL_TERMS` المستخدم في `FilterSheet` — **لم يُحذف FilterSheet** |
+| محركات `land` / `hotel` | `requiresFacet: true` — تظهر فقط مع مخزون |
+| تمليك يمسح `rentalTerm` | منع تضارب فلاتر |
+| `/search-results` → إعادة توجيه للتبويب | روابط قديمة تعمل |
+| قبول `engine` من الروابط | مساعد + deep links |
+| كتلة iOS في profile `preview` | `eas.json` |
+
+**Commit:** `cdf90b9`
+
+### 2.5 تحقق محلي (بعد الموجات)
+
+```
+pnpm run typecheck     → PASS (7 حزم)
+api-server build       → PASS
+dealer-os vite build   → PASS
+health smoke (محلي)    → PASS — `health.test.ts` (healthz/livez/readyz قبل Clerk)
+```
+
+---
+
+## 3. ما لم يُمس — عمداً (لا تقلق من فقدان فروع/دول)
+
+| المنطقة | ما بقي كما هو |
+|---------|----------------|
+| **دول متعددة** | `MARKET_COUNTRIES` + `rentalTermsForCountry()` في **إنشاء الإعلان** |
+| **تصنيف عقاري** | `listingCreateTaxonomy.ts` — أنواع، دفعات، مركّب، إلخ |
+| **محركات البحث** | `constants/engines.ts` — تمليك/إيجار دائماً؛ الباقي facet-gated |
+| **ورقة الفلاتر الكاملة** | `FilterSheet.tsx` — كل الفلاتر المتقدمة |
+| **الخريطة والتجميع** | `SearchResultsMap`, bbox clustering |
+| **أيقونات Android** | lucide registry — اختبار 6/6 |
+| **الأصوات والإشعارات** | `SoundContext`, push — لم تُحذف |
+| **origin الروابط** | `https://replit.com/` في `app.json` — مؤجّل حتى موافقة نطاق الإنتاج |
+| **ملفات admin/dealer/landing** | آلاف التعديلات غير المرتبطة **لم تُدمج** في commits الصيانة |
+
+### توضيح العقارات متعددة الدول
+
+- **الإنشاء:** نظام الإيجار يتغيّر حسب الدولة (`rentalTermsForCountry`) — **لم يُغيّر**.
+- **البحث (موجة 3):** أضفنا شرائح نظام الإيجار على التبويب بنفس قائمة `RENTAL_TERMS` التي يستخدمها `FilterSheet` اليوم — **سلوك متسق مع الموجود، ليس استبدالاً للفروع حسب الدولة في الإنشاء**.
+
+---
+
+## 4. ما تبقى — مرتّب بالأولوية (لا تُعالَج مرتين)
+
+### P0 — قبل أي نشر أو متجر
+
+| # | المهمة | الحالة | ملاحظة |
+|---|--------|--------|--------|
+| 1 | دمج موجات 1–3 على `origin/main` | ✅ | @ `0eea161` |
+| 2 | CI أخضر (Typecheck & build + API tests + ESLint + Mobile) | ✅ | Actions @ `7cb7a1b` — 4/4 green |
+| 3 | `drizzle push` لجدول `upload_claims` على staging/prod | ✅ كود | `ensureSchemaPatches` + `scripts/verify-upload-claims-schema.mjs` — شغّل على staging |
+| 4 | smoke staging بمفاتيح Clerk + تخزين حقيقي | ✅ سكربت | `scripts/staging-p0-smoke.mjs` — شغّل على staging |
+
+### P1 — منتج (قرار مطلوب — لا صيانة عشوائية)
+
+| # | المهمة | لماذا مؤجّل |
+|---|--------|-------------|
+| 5 | شاشة **تعديل إعلان** على الموبايل (حقول أساسية) | ✅ موجة R1 | عنوان/وصف/موقع/سعر — `WAVE-R1-FURNISHED-RENTAL-HUB.md` |
+| 6 | **بالقرب مني** `near_lat` / `radius_km` على الموبايل | ✅ موجة 5 | OpenAPI + FilterSheet + map parity |
+| 7 | فلترة نظام الإيجار **حسب دولة السوق** على البحث | ✅ موجة 4 | `lib/searchTaxonomy.ts` |
+| 8 | المزيد من `property_type` في المحركات | ✅ | duplex/penthouse/studio/townhouse/chalet/office/shop/warehouse/commercial_land — facet-gated |
+
+### P2 — بنية ونشر
+
+| # | المهمة | الحالة |
+|---|--------|--------|
+| 9 | مجلد نشر GCP | ✅ | `deploy/gcp/` — `WAVE-P2-INFRA.md` |
+| 10 | تغيير `expo-router.origin` عند اعتماد النطاق | ⏸️ | مؤجّل حتى موافقة نطاق الإنتاج |
+| 11 | ESLint monorepo | ✅ | `eslint.config.mjs` + CI job |
+| 12 | اختبارات offline / crash / أداء آلية | ✅ | `test:resilience` + `test:lib` |
+
+### P3 — بحث (موجات 4–5)
+
+- ✅ موجة 4: محاذاة بحث العقارات مع `MARKET_COUNTRIES` + sync محركات السيارات — `WAVE-4-SEARCH-TAXONOMY.md`
+- ✅ موجة 5: near-me على الموبايل + تطابق خريطة/قائمة + OpenAPI — `WAVE-5-SEARCH-GEO-MAPS.md`
+
+### P4 — محفظة وفوترة (جرد B0 + خطة B1–B5)
+
+**مبدأ:** الماكينة المالية **موجودة ومربوطة**؛ المنصة **مجانية تشغيلياً** (baseline 50/50، Paymob معطّل من الأدمن). لا تفعيل مدفوع حتى موجة B5 بقرار إداري.
+
+| موجة | المحتوى | خطر على المجاني |
+|------|---------|------------------|
+| **B0** | جرد كامل — `WALLET-BILLING-FINANCE-AUDIT.md` | صفر |
+| **B1** | ✅ فواتير UI (قراءة)، إيراد أدمن من ledger، OpenAPI payments — `WAVE-B1-BILLING-UI.md` | صفر |
+| **B2** | ✅ مركز مالي Hub + فلاتر معاملات + سجل promo — `WAVE-B2-FINANCE-HUB.md` | صفر |
+| **B3** | ✅ إشعارات وإيميل فوترة — `WAVE-B3-BILLING-NOTIFICATIONS.md` | منخفض |
+| **B4** | ✅ PDF فواتير + كشف CSV شهري — `WAVE-B4-EXPORT.md` | منخفض |
+| **B5** | تفعيل Paymob + خطط مدفوعة | **قرار إداري فقط** |
+
+**خارج v1:** محفظة بين مستخدمين، سحب أرباح، تقسيط، نقاط، كوبونات خصم.
+
+### P2+ — مقترح لاحقاً (ملايين مستخدمين)
+
+| # | المهمة |
+|---|--------|
+| 13 | فهرس geo / geohash على الإحداثيات الفعّالة |
+| 14 | `sort=nearest` (ترتيب بالمسافة) |
+| 15 | لمس خفيف haptic/sound |
+
+### P5 — موقع BANCO العام (Consumer Website) — **تخطيط فقط حتى W0**
+
+**مبدأ:** فصل تام عن الموبايل وـ api-server (additive فقط) — لا breaking changes على artifacts الإنتاج.
+
+الموقع (`artifacts/landing` اليوم، `artifacts/banco-web` لاحقاً) consumer surface **اختياري**: نفس OpenAPI + `@workspace/taxonomy`، CI/deploy/monitoring منفصل، وفشل build الويب لا يحجب EAS أو mobile-regression. SEO للإعلانات موجود جزئياً على api-server (`seoRoutes.ts` → `/l/:id`); موجات W1–W4 توسّع hubs + browse/search/map مع checklist «mobile unaffected».
+
+**المرجع:** [`audit/website/WEBSITE-SEPARATION-AND-COMPATIBILITY-PLAN.md`](../website/WEBSITE-SEPARATION-AND-COMPATIBILITY-PLAN.md) · [`WEBSITE-MOBILE-INDEPENDENCE-CHECKLIST.md`](../website/WEBSITE-MOBILE-INDEPENDENCE-CHECKLIST.md)
+
+---
+
+## 5. خريطة المستندات (مصدر واحد للحقيقة)
+
+### ركائز الجاهزية للإنتاج (Seven Launch Pillars)
+
+توثيق **إضافي فقط** — لا يغيّر مسار النشر الافتراضي (create → upload → promote → feed/search).  
+الفهرس: [`audit/production-readiness/SEVEN-LAUNCH-PILLARS.md`](../production-readiness/SEVEN-LAUNCH-PILLARS.md) (feature flags، rollback migrations، observability، API v1، backward compat، DR، release rollback).
+
+```
+audit/
+├── production-readiness/
+│   ├── SEVEN-LAUNCH-PILLARS.md
+│   ├── FEATURE-FLAGS.md
+│   ├── MIGRATION-ROLLBACK-PLAYBOOK.md
+│   ├── OBSERVABILITY-RUNBOOK.md
+│   ├── API-VERSIONING-POLICY.md
+│   ├── BACKWARD-COMPATIBILITY.md
+│   ├── DISASTER-RECOVERY-VERIFICATION.md
+│   └── RELEASE-ROLLBACK-PLAYBOOK.md
+├── website/
+│   ├── WEBSITE-SEPARATION-AND-COMPATIBILITY-PLAN.md
+│   └── WEBSITE-MOBILE-INDEPENDENCE-CHECKLIST.md
+├── maintenance/
+│   ├── MASTER-MAINTENANCE-READINESS-PLAN.md   ← هذا الملف
+│   ├── WAVE-1-UPLOAD-CI-EAS.md
+│   ├── WAVE-2-SEARCH-INDUSTRIAL.md
+│   ├── WAVE-3-SEARCH-RE-EAS.md
+│   ├── WAVE-4-SEARCH-TAXONOMY.md
+│   ├── WAVE-5-SEARCH-GEO-MAPS.md
+│   ├── WAVE-R1-FURNISHED-RENTAL-HUB.md
+│   ├── WAVE-PH1-PRODUCTION-HARDENING.md
+│   ├── WAVE-B4-EXPORT.md
+│   ├── WAVE-P0-STAGING-VALIDATION.md
+│   ├── WAVE-P2-INFRA.md
+│   └── WALLET-BILLING-FINANCE-AUDIT.md
+├── rc1/
+│   ├── BANCO-STORE-RELEASE-CANDIDATE-REPORT.md
+│   └── *.log (مخرجات التحقق)
+├── fixes/ C-01, C-02, C-03, H-03
+release/   EAS_BUILD, STORE_PUBLISHING, USER_JOURNEY, …
+reports/   مقارنات repos + WALLET-BILLING-AUDIT-2026-07-07.md
+scripts/rc1-validation.ps1
+.agents/memory/  قرارات معمارية (taxonomy, rent-engine, icons, …)
+```
+
+---
+
+## 6. حالة Git والريبوهات
+
+| الريبو | المسار / URL | آخر معروف | إجراء |
+|--------|----------------|-----------|--------|
+| **هنا (أساسي)** | `origin` → `waelzaid66-max/-BANCO-CA-OOM-` | `main` @ `7cb7a1b` | مزامنة `banco.store-main` عند توفر المسار |
+
+**روابط PR:**  
+https://github.com/waelzaid66-max/-BANCO-CA-OOM-/pull/new/maintenance/wave-1-3-upload-search-eas
+
+---
+
+## 7. قائمة تحقق قبل «نكمل صح»
+
+- [x] دمج PR → `main` على GitHub
+- [x] Actions: Typecheck & build + API tests + ESLint + Mobile regression = green
+- [x] قراءة هذا الملف + RC-1 قبل أي موجة جديدة
+- [x] أي تغيير عقارات/دول: **تحقق من** `listingCreateTaxonomy.ts` + `engines.ts` + `FilterSheet` — لا حذف
+- [ ] EAS preview build يدوي عند الجاهزية (`release/EAS_BUILD.md`)
+- [ ] تشغيل `staging-p0-smoke.mjs` على بيئة staging الحقيقية
+
+---
+
+## 8. سجل Commits للصيانة (مرجع سريع)
+
+```
+cdf90b9  fix(search): wave 3 — RE rental chips, land/hotel, route unify, EAS preview
+3607c0a  fix: wave 1+2 — upload, health, CI, industrial search, EAS metadata
+e24014b  fix(security): P0 upload IDOR, LIKE, visibility, ACL
+```
+
+---
+
+*عند بدء أي مهمة جديدة: ابحث في هذا الملف عن رقم المهمة في §4 — إن كانت ⏳ أو P1 مؤجّلة، ناقش القرار قبل التنفيذ.*
+
+### Wave — production-readiness consolidation (2026-07-08)
+
+- [x] Document deploy/launch pillars and playbooks under udit/production-readiness/
+- [x] scripts/production-confidence-check.mjs + root pnpm run confidence
+- [x] Listing publish lifecycle doc — verdict **publish safe** for consolidation diff
+- [ ] Human: staging EAS device runbook + listing publish smoke
+- [ ] Human: production secrets (GCP, EAS, auth providers)

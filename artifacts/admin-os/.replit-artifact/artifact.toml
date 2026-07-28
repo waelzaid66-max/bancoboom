@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/admin-os/"
+title = "BANCO Admin Control Center"
+version = "1.0.0"
+id = "artifacts/admin-os"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/admin-os/" ]
+localPort = 22357
+
+[services.development]
+run = "pnpm --filter @workspace/admin-os run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/admin-os", "run", "build" ]
+publicDir = "artifacts/admin-os/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22357"
+BASE_PATH = "/admin-os/"

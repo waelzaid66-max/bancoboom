@@ -1,0 +1,137 @@
+name: CI
+
+# Operation tools on GitHub: every push/PR is type-checked, built, and the full
+# api-server suite is run against a real PostgreSQL — the verification that can't
+# be done on the Windows dev machine (no local Postgres; win32 binaries pruned).
+# CI runs on Linux x64, where the lockfile keeps the esbuild/rollup binaries, so
+# build + tests work natively.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Typecheck & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # pnpm version is pinned by "packageManager" in package.json (single source
+      # of truth for Corepack + local + CI). Do NOT add a `version:` here — with
+      # both set, action-setup fails: "Multiple versions of pnpm specified".
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck (all packages)
+        run: pnpm run typecheck
+      - name: Build server + web apps
+        run: >-
+          pnpm
+          --filter @workspace/api-server
+          --filter @workspace/dealer-os
+          --filter @workspace/admin-os
+          --filter @workspace/landing
+          run build
+
+  test:
+    name: API tests (Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: banco_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/banco_test
+      # Run the suite in UTC. The schema uses `timestamp` (without time zone);
+      # the recency keyset cursor compares timestamps for exact equality, which is
+      # only stable when the DB session and Node process share a zone. CI runners
+      # and production are UTC — pin it so the suite is deterministic everywhere.
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@v4
+      # pnpm version is pinned by "packageManager" in package.json (single source
+      # of truth for Corepack + local + CI). Do NOT add a `version:` here — with
+      # both set, action-setup fails: "Multiple versions of pnpm specified".
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Enable pg_trgm extension
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          psql "$DATABASE_URL" -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+      - name: Push database schema
+        run: pnpm --filter @workspace/db run push-force
+      - name: Seed reference + demo data (plans/baseline, locations, brands)
+        # The integration suite runs against a SEEDED database (as on Replit):
+        # PlanService.resolveEffectivePlan needs a baseline plan row, and the
+        # taxonomy tests need seeded locations ("New Cairo") + car brands. A bare
+        # schema push leaves those tables empty, so seed before testing.
+        run: pnpm --filter @workspace/api-server run seed
+      - name: Run api-server test suite
+        run: pnpm --filter @workspace/api-server run test
+
+  lint:
+    name: ESLint (scripts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint maintenance scripts
+        run: pnpm run lint
+
+  gcp-config-gate:
+    name: GCP config gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify Cloud Build + Dockerfile paths/tags
+        run: node scripts/verify-gcp-docker-build-config.mjs
+
+  mobile-regression:
+    name: Mobile regression (static)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Full mobile static pack — icons · lib · resilience · universal-links ·
+      # session-restore · section-miniapp (must match package.json "test").
+      - name: Mobile static regression (full pack)
+        run: pnpm --filter @workspace/banco-mobile run test
+      - name: Demo seed production guard (static)
+        run: pnpm --filter @workspace/api-server run test:seed-guard

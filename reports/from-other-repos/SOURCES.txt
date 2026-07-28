@@ -1,0 +1,7 @@
+﻿C:\Users\waelz\Downloads\banco stor app\banco.store-main\README.md -> C:\Users\waelz\Downloads\BANCO-CA-OOM\reports\from-other-repos\banco.store-main__README.md
+C:\Users\waelz\Downloads\banco stor app\banco.store-main\README_AUDIT.md -> C:\Users\waelz\Downloads\BANCO-CA-OOM\reports\from-other-repos\banco.store-main__README_AUDIT.md
+C:\Users\waelz\Downloads\banco stor app\banco.store-main\STATUS_REPORT.md -> C:\Users\waelz\Downloads\BANCO-CA-OOM\reports\from-other-repos\banco.store-main__STATUS_REPORT.md
+C:\Users\waelz\Downloads\banco stor app\banco-cloud-web-app-all\README.md -> C:\Users\waelz\Downloads\BANCO-CA-OOM\reports\from-other-repos\banco-cloud-web-app-all__README.md
+C:\Users\waelz\Downloads\banco stor app\banco-cloud-web-app-all\STATUS_REPORT.md -> C:\Users\waelz\Downloads\BANCO-CA-OOM\reports\from-other-repos\banco-cloud-web-app-all__STATUS_REPORT.md
+C:\Users\waelz\Downloads\banco stor app\aws-virgen\README.md -> C:\Users\waelz\Downloads\BANCO-CA-OOM\reports\from-other-repos\aws-virgen__README.md
+C:\Users\waelz\Downloads\banco stor app\aws-virgen\STATUS_REPORT.md -> C:\Users\waelz\Downloads\BANCO-CA-OOM\reports\from-other-repos\aws-virgen__STATUS_REPORT.md

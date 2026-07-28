@@ -1,0 +1,104 @@
+# Cloud Build → Artifact Registry → Cloud Run (full deploy).
+# Context MUST be repository root (.)
+#
+# Substitutions (set in trigger or gcloud --substitutions=):
+#   _REGION, _SERVICE, _AR_REPO, _IMAGE_NAME, _ALLOW_UNAUTH
+#   _CLOUDSQL_INSTANCE  e.g. my-proj:europe-west1:banco-pg (empty = skip)
+#   _RUNTIME_SERVICE_ACCOUNT  e.g. banco-api-run@my-proj.iam.gserviceaccount.com
+#   _SECRET_BINDINGS  e.g. DATABASE_URL=banco-database-url:latest,CLERK_SECRET_KEY=...
+#   _CPU, _MEMORY, _MIN_INSTANCES, _MAX_INSTANCES
+
+substitutions:
+  _REGION: europe-west1
+  _SERVICE: banco-api
+  _AR_REPO: banco
+  _IMAGE_NAME: api
+  _ALLOW_UNAUTH: "false"
+  _CLOUDSQL_INSTANCE: ""
+  _RUNTIME_SERVICE_ACCOUNT: ""
+  _SECRET_BINDINGS: ""
+  _CPU: "1"
+  _MEMORY: "1Gi"
+  _MIN_INSTANCES: "0"
+  _MAX_INSTANCES: "10"
+
+steps:
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: preflight
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        gcloud --quiet services enable run.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com
+        gcloud --quiet artifacts repositories describe ${_AR_REPO} --location=${_REGION} >/dev/null || {
+          echo "[ERROR] Artifact Registry repo '${_AR_REPO}' not found in region '${_REGION}'.";
+          echo "Run: bash deploy/gcp/scripts/bootstrap-project.sh";
+          exit 1;
+        }
+
+  - name: gcr.io/cloud-builders/docker
+    id: build-api
+    args:
+      - build
+      - -f
+      - deploy/gcp/Dockerfile.api
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_IMAGE_NAME}:$BUILD_ID
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-api
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_IMAGE_NAME}:$BUILD_ID
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: deploy-cloud-run
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        AUTH_FLAG="--no-allow-unauthenticated"
+        if [ "${_ALLOW_UNAUTH}" = "true" ]; then
+          AUTH_FLAG="--allow-unauthenticated"
+        fi
+
+        DEPLOY_ARGS=(
+          run deploy ${_SERVICE}
+          --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_IMAGE_NAME}:$BUILD_ID
+          --region=${_REGION}
+          --platform=managed
+          ${AUTH_FLAG}
+          --port=8080
+          --cpu=${_CPU}
+          --memory=${_MEMORY}
+          --min-instances=${_MIN_INSTANCES}
+          --max-instances=${_MAX_INSTANCES}
+          --concurrency=80
+          --timeout=300
+          --execution-environment=gen2
+          --set-env-vars=NODE_ENV=production,TZ=UTC,LOG_LEVEL=info
+          --startup-probe=path=/api/healthz,port=8080,initial-delay-seconds=15,period-seconds=10,failure-threshold=5,timeout-seconds=5
+          --liveness-probe=path=/api/healthz,port=8080,period-seconds=30,failure-threshold=3,timeout-seconds=5
+        )
+
+        if [ -n "${_CLOUDSQL_INSTANCE}" ]; then
+          DEPLOY_ARGS+=(--add-cloudsql-instances=${_CLOUDSQL_INSTANCE})
+        fi
+        if [ -n "${_RUNTIME_SERVICE_ACCOUNT}" ]; then
+          DEPLOY_ARGS+=(--service-account=${_RUNTIME_SERVICE_ACCOUNT})
+        fi
+        if [ -n "${_SECRET_BINDINGS}" ]; then
+          DEPLOY_ARGS+=(--set-secrets=${_SECRET_BINDINGS})
+        fi
+
+        gcloud "${DEPLOY_ARGS[@]}"
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_IMAGE_NAME}:$BUILD_ID
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 2400s

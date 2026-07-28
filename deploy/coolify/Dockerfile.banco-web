@@ -1,0 +1,98 @@
+# syntax=docker/dockerfile:1.7
+###############################################################################
+# BANCO consumer web — Next.js standalone (artifacts/banco-web) for Coolify.
+#
+# Build context = repository root:
+#   docker build -f deploy/coolify/Dockerfile.banco-web \
+#     --build-arg NEXT_PUBLIC_API_URL=http://api:8080 \
+#     --build-arg NEXT_PUBLIC_SITE_URL=https://app.yourdomain.com \
+#     --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_... \
+#     -t banco-web .
+#
+# IMPORTANT — NEXT_PUBLIC_* variables are BAKED AT BUILD TIME:
+#   • NEXT_PUBLIC_API_URL is used server-side (SSR data fetches + Next rewrites).
+#     Set it to the INTERNAL Docker service URL (http://api:8080) so the Next.js
+#     SSR runtime can reach the API container. Browsers never call this URL
+#     directly — they use relative /api/* paths that Next.js proxies server-side.
+#   • NEXT_PUBLIC_SITE_URL must be the public-facing domain of this app.
+#   • A rebuild is required whenever any NEXT_PUBLIC_* value changes.
+#
+# Run:
+#   docker run -p 3000:3000 -e PORT=3000 banco-web
+###############################################################################
+
+FROM node:24-bookworm-slim AS builder
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable
+WORKDIR /app
+
+# ---- Build-time public env vars (baked into the Next.js bundle) -------------
+ARG NEXT_PUBLIC_API_URL=http://api:8080
+ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
+ARG NEXT_PUBLIC_MARKET_URL=
+ARG NEXT_PUBLIC_ADMIN_URL=
+ARG NEXT_PUBLIC_APP_ANDROID_URL=
+ARG NEXT_PUBLIC_APP_IOS_URL=
+ARG NEXT_PUBLIC_WEB_SEARCH_LIVE=false
+ARG NEXT_PUBLIC_WEB_SEARCH_MAP=false
+ARG NEXT_PUBLIC_WEB_MARKET_COPY=false
+ARG NEXT_PUBLIC_SEARCH_ENABLED=true
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+ARG NEXT_PUBLIC_CLERK_PROXY_URL=
+ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
+
+ENV NEXT_STANDALONE=true \
+    NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
+    NEXT_PUBLIC_MARKET_URL=$NEXT_PUBLIC_MARKET_URL \
+    NEXT_PUBLIC_ADMIN_URL=$NEXT_PUBLIC_ADMIN_URL \
+    NEXT_PUBLIC_APP_ANDROID_URL=$NEXT_PUBLIC_APP_ANDROID_URL \
+    NEXT_PUBLIC_APP_IOS_URL=$NEXT_PUBLIC_APP_IOS_URL \
+    NEXT_PUBLIC_WEB_SEARCH_LIVE=$NEXT_PUBLIC_WEB_SEARCH_LIVE \
+    NEXT_PUBLIC_WEB_SEARCH_MAP=$NEXT_PUBLIC_WEB_SEARCH_MAP \
+    NEXT_PUBLIC_WEB_MARKET_COPY=$NEXT_PUBLIC_WEB_MARKET_COPY \
+    NEXT_PUBLIC_SEARCH_ENABLED=$NEXT_PUBLIC_SEARCH_ENABLED \
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY \
+    NEXT_PUBLIC_CLERK_PROXY_URL=$NEXT_PUBLIC_CLERK_PROXY_URL \
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+
+# Full workspace copy (minus node_modules/.git/dist via .dockerignore). Required
+# because `pnpm install --frozen-lockfile` validates EVERY workspace member's
+# package.json against the lockfile.
+COPY . .
+
+# Install ONLY the banco-web subtree. Cache mount keeps the pnpm store warm.
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter "@workspace/banco-web..."
+
+# Build the Next.js app (standalone output enabled via NEXT_STANDALONE=true).
+RUN pnpm --filter @workspace/banco-web run build
+
+# ---- runner: minimal Next.js standalone image --------------------------------
+FROM node:24-bookworm-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
+
+# The standalone output includes all required server code and node_modules.
+COPY --from=builder --chown=nextjs:nodejs /app/artifacts/banco-web/.next/standalone ./
+# Static assets (/_next/static) must be copied separately into the standalone tree.
+COPY --from=builder --chown=nextjs:nodejs /app/artifacts/banco-web/.next/static \
+    ./artifacts/banco-web/.next/static
+# Public folder (images, fonts, etc.)
+COPY --from=builder --chown=nextjs:nodejs /app/artifacts/banco-web/public \
+    ./artifacts/banco-web/public
+
+USER nextjs
+EXPOSE 3000
+
+# Liveness: /api/healthz exists in the app router (artifacts/banco-web/app/api/healthz/route.ts).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "artifacts/banco-web/server.js"]

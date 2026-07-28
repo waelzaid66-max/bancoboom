@@ -1,0 +1,80 @@
+# syntax=docker/dockerfile:1.7
+###############################################################################
+# BANCO consumer web — Next.js standalone (artifacts/banco-web)
+#
+# Build context = repository root:
+#   docker build -f deploy/aws/Dockerfile.banco-web \
+#     --build-arg NEXT_PUBLIC_API_URL=https://api.example.com \
+#     --build-arg NEXT_PUBLIC_SITE_URL=https://www.example.com \
+#     --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_... \
+#     --build-arg NEXT_PUBLIC_CLERK_PROXY_URL=https://www.example.com/api/__clerk \
+#     --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=... \
+#     -t banco-consumer-web .
+#
+# Run:
+#   docker run -p 3000:3000 -e PORT=3000 banco-consumer-web
+###############################################################################
+
+FROM node:24-bookworm-slim AS builder
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable
+WORKDIR /app
+
+ARG NEXT_PUBLIC_API_URL=http://localhost:5000
+ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
+ARG NEXT_PUBLIC_MARKET_URL=
+ARG NEXT_PUBLIC_ADMIN_URL=
+ARG NEXT_PUBLIC_APP_ANDROID_URL=
+ARG NEXT_PUBLIC_APP_IOS_URL=
+ARG NEXT_PUBLIC_WEB_SEARCH_LIVE=false
+ARG NEXT_PUBLIC_WEB_SEARCH_MAP=false
+ARG NEXT_PUBLIC_WEB_MARKET_COPY=false
+ARG NEXT_PUBLIC_SEARCH_ENABLED=true
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+ARG NEXT_PUBLIC_CLERK_PROXY_URL=
+ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
+ENV NEXT_STANDALONE=true \
+    NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
+    NEXT_PUBLIC_MARKET_URL=$NEXT_PUBLIC_MARKET_URL \
+    NEXT_PUBLIC_ADMIN_URL=$NEXT_PUBLIC_ADMIN_URL \
+    NEXT_PUBLIC_APP_ANDROID_URL=$NEXT_PUBLIC_APP_ANDROID_URL \
+    NEXT_PUBLIC_APP_IOS_URL=$NEXT_PUBLIC_APP_IOS_URL \
+    NEXT_PUBLIC_WEB_SEARCH_LIVE=$NEXT_PUBLIC_WEB_SEARCH_LIVE \
+    NEXT_PUBLIC_WEB_SEARCH_MAP=$NEXT_PUBLIC_WEB_SEARCH_MAP \
+    NEXT_PUBLIC_WEB_MARKET_COPY=$NEXT_PUBLIC_WEB_MARKET_COPY \
+    NEXT_PUBLIC_SEARCH_ENABLED=$NEXT_PUBLIC_SEARCH_ENABLED \
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY \
+    NEXT_PUBLIC_CLERK_PROXY_URL=$NEXT_PUBLIC_CLERK_PROXY_URL \
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc tsconfig.base.json tsconfig.json ./
+# The root package.json runs a `preinstall` hook (scripts/preinstall-enforce-pnpm.mjs);
+# copy it before install or `pnpm install` fails with "Cannot find module".
+COPY scripts/preinstall-enforce-pnpm.mjs ./scripts/preinstall-enforce-pnpm.mjs
+COPY lib ./lib
+COPY artifacts/banco-web/package.json ./artifacts/banco-web/package.json
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter @workspace/banco-web...
+COPY artifacts/banco-web ./artifacts/banco-web
+RUN pnpm --filter @workspace/banco-web run build
+
+FROM node:24-bookworm-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
+
+COPY --from=builder --chown=nextjs:nodejs /app/artifacts/banco-web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/artifacts/banco-web/.next/static ./artifacts/banco-web/.next/static
+
+USER nextjs
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/api/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "artifacts/banco-web/server.js"]

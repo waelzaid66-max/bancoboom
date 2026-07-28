@@ -1,0 +1,24 @@
+{
+  "capturedAt": "2026-07-10T17:30:00+03:00",
+  "head": "1aecea5",
+  "tag": "v1.1.1-product-truth-2026-07-10",
+  "base": "https://banco-ca-oom.replit.app",
+  "health": "ok",
+  "egIds": "20e9df18-d4a5-4df0-b0fc-44213065afd6,384d098c-8060-4559-a837-9dbf479d1544,85b407c4-6283-4cd5-9571-456074acdf2e",
+  "saIds": "",
+  "egEqSa": false,
+  "badIsoStatus": 400,
+  "mapKeys": "count,is_bookable,lat,listing_id,lng,price_display",
+  "hasBookable": true,
+  "hasPrice": true,
+  "clusterCount": 5,
+  "marketFilterNote": "EG≠SA — market_country filter observable",
+  "verdict": "FRESH — ISO reject + map bookable/price deployed",
+  "gates": {
+    "libHardening": "36/36",
+    "productionConfidence": "19/19",
+    "preRedeployCodeGate": "PASS",
+    "stagingSmokeUpload": "BLOCKED — CLERK_BEARER_TOKEN",
+    "deviceQA": "OPEN"
+  }
+}

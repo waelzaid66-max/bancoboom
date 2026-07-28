@@ -1,0 +1,75 @@
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
+# compiled output
+dist
+tmp
+out-tsc
+*.tsbuildinfo
+
+# runtime logs
+logs/
+.expo
+.expo-shared
+
+# dependencies
+node_modules
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+# System Files
+.DS_Store
+Thumbs.db
+
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+
+# Replit
+.cache/
+.local/
+
+# local verification logs (agent/CI scratch)
+*-out.txt
+_agent_out.txt
+_confidence_out.txt
+_pnpm_install.log
+audit/rc1/*.log
+
+# large/sensitive artifacts — keep on disk, never track (bloat + data-exposure)
+database_backup.dump
+database_backup.dump.gz
+attached_assets/
+
+# local secrets — NEVER commit
+.secrets/
+.env
+.env.*
+!.env*.example
+
+# Local static preview builds (rebuilt on demand, never committed)
+artifacts/banco-mobile/web-preview/
+artifacts/banco-mobile/web-preview-prev/
+artifacts/banco-mobile/web-preview-next/

@@ -1,0 +1,40 @@
+name: CI Website Docker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "artifacts/banco-web/**"
+      - "lib/design-tokens/**"
+      - "lib/search-contract/**"
+      - "deploy/aws/Dockerfile.banco-web"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - ".github/workflows/ci-website-docker.yml"
+  pull_request:
+    paths:
+      - "artifacts/banco-web/**"
+      - "lib/design-tokens/**"
+      - "lib/search-contract/**"
+      - "deploy/aws/Dockerfile.banco-web"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - ".github/workflows/ci-website-docker.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-website-docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker-banco-web:
+    name: Docker build (banco-web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build consumer web image
+        run: |
+          docker build -f deploy/aws/Dockerfile.banco-web \
+            --build-arg NEXT_PUBLIC_API_URL=http://localhost:5000 \
+            --build-arg NEXT_PUBLIC_SITE_URL=http://localhost:3000 \
+            -t banco-consumer-web:ci .

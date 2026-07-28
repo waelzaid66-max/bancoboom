@@ -1,0 +1,112 @@
+name: Deploy (AWS)
+
+# CD for AWS production. Gated on the same checks as CI, then ECR push + SSM deploy.
+# Prefer deploying from **aws-virgen** (EC2 clone path). This workflow also exists on
+# the primary monorepo for parity.
+#
+# Required secrets/vars: AWS_ROLE_ARN, AWS_REGION, ECR_REGISTRY, EC2_INSTANCE_ID, SSM_PREFIX
+# Build-time vars: VITE_CLERK_PUBLISHABLE_KEY, VITE_API_BASE_URL
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag or SHA to deploy"
+        required: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  verify:
+    name: Verify (typecheck + tests)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: banco_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/banco_test
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      # Production deploy must not skip mobile static gates (parity with ci.yml).
+      - name: Mobile static regression (full pack)
+        run: pnpm --filter @workspace/banco-mobile run test
+      - name: Demo seed production guard (static)
+        run: pnpm --filter @workspace/api-server run test:seed-guard
+      - name: Prepare test DB
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          psql "$DATABASE_URL" -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+          pnpm --filter @workspace/db run push-force
+          pnpm --filter @workspace/api-server run seed
+      - run: pnpm --filter @workspace/api-server run test
+
+  build-and-push:
+    name: Build + push images to ECR
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+      - name: Build + push API
+        run: |
+          TAG="${{ github.event.inputs.ref || github.ref_name }}"
+          docker build -f deploy/aws/Dockerfile.api -t "${{ vars.ECR_REGISTRY }}/banco-api:$TAG" .
+          docker push "${{ vars.ECR_REGISTRY }}/banco-api:$TAG"
+      - name: Build + push Web
+        run: |
+          TAG="${{ github.event.inputs.ref || github.ref_name }}"
+          docker build -f deploy/aws/Dockerfile.web \
+            --build-arg VITE_CLERK_PUBLISHABLE_KEY="${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}" \
+            --build-arg VITE_API_BASE_URL="${{ vars.VITE_API_BASE_URL }}" \
+            -t "${{ vars.ECR_REGISTRY }}/banco-web:$TAG" .
+          docker push "${{ vars.ECR_REGISTRY }}/banco-web:$TAG"
+
+  deploy:
+    name: Deploy on EC2 (SSM)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Trigger deploy.sh on the host
+        run: |
+          aws ssm send-command \
+            --instance-ids "${{ vars.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "BANCO deploy ${{ github.ref_name }}" \
+            --parameters commands='cd /opt/banco/aws-virgen && git fetch --all --tags && git checkout ${{ github.event.inputs.ref || github.ref_name }} && AWS_REGION=${{ vars.AWS_REGION }} SSM_PREFIX=${{ vars.SSM_PREFIX }} bash deploy/aws/scripts/deploy.sh' \
+            --region "${{ vars.AWS_REGION }}"

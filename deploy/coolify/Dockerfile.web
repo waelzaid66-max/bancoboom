@@ -1,0 +1,86 @@
+# syntax=docker/dockerfile:1.7
+###############################################################################
+# BANCO web surfaces — Vite SPAs + Nginx (Coolify on Hostinger VPS)
+#
+# Builds three Vite SPAs and serves them via a single Nginx container:
+#   landing    →  /          (root)
+#   dealer-os  →  /market/   (dealer portal)
+#   admin-os   →  /admin/    (admin control)
+#
+# Nginx also reverse-proxies /api/ to the api container at http://api:8080.
+#
+# KEY: BASE_PATH is set per-app at build time so Vite bakes the correct asset
+# base into the HTML (e.g. /admin/assets/... for admin-os). This prevents blank
+# pages caused by assets referencing the wrong path when served from a subpath.
+#
+# All Vite VITE_* variables are BUILD-TIME only (baked into the bundle).
+# A rebuild is required whenever VITE_* values change.
+#
+# Build context = repository root:
+#   docker build -f deploy/coolify/Dockerfile.web \
+#     --build-arg VITE_CLERK_PUBLISHABLE_KEY=pk_live_... \
+#     --build-arg VITE_API_BASE_URL=https://api.yourdomain.com \
+#     -t banco-web-static .
+###############################################################################
+
+FROM node:24-bookworm-slim AS builder
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable
+WORKDIR /app
+
+# ---- Build-time public config (safe to bake — publishable keys + public URLs) ----
+ARG VITE_CLERK_PUBLISHABLE_KEY=""
+ARG VITE_CLERK_PROXY_URL=""
+ARG VITE_API_BASE_URL=""
+ARG VITE_MARKET_URL=""
+ARG VITE_ADMIN_URL=""
+ARG VITE_APP_ANDROID_URL=""
+ARG VITE_APP_IOS_URL=""
+
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY \
+    VITE_CLERK_PROXY_URL=$VITE_CLERK_PROXY_URL \
+    VITE_API_BASE_URL=$VITE_API_BASE_URL \
+    VITE_MARKET_URL=$VITE_MARKET_URL \
+    VITE_ADMIN_URL=$VITE_ADMIN_URL \
+    VITE_APP_ANDROID_URL=$VITE_APP_ANDROID_URL \
+    VITE_APP_IOS_URL=$VITE_APP_IOS_URL
+
+# Full workspace copy (minus node_modules/.git/dist via .dockerignore).
+COPY . .
+
+# Install all three SPAs + their workspace deps with cache mount.
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile \
+      --filter "@workspace/admin-os..." \
+      --filter "@workspace/dealer-os..." \
+      --filter "@workspace/landing..."
+
+# Build landing (served at /, BASE_PATH defaults to /).
+RUN pnpm --filter @workspace/landing run build
+
+# Build dealer-os at /market/ base path.
+RUN BASE_PATH=/market/ pnpm --filter @workspace/dealer-os run build
+
+# Build admin-os at /admin/ base path.
+RUN BASE_PATH=/admin/ pnpm --filter @workspace/admin-os run build
+
+# ---- serve: Nginx + pre-built static assets ---------------------------------
+FROM nginx:1.27-alpine AS runner
+RUN rm -rf /usr/share/nginx/html/*
+
+# NOTE: Vite outDir is `dist/public` (per vite.config.ts), so we copy the
+# contents of dist/public/ (the actual HTML/JS/CSS) into the nginx root.
+# A plain `COPY dist/` would place files under /usr/share/nginx/html/public/
+# instead of the root, breaking index.html loading.
+COPY --from=builder /app/artifacts/landing/dist/public/   /usr/share/nginx/html/
+COPY --from=builder /app/artifacts/dealer-os/dist/public/ /usr/share/nginx/html/market/
+COPY --from=builder /app/artifacts/admin-os/dist/public/  /usr/share/nginx/html/admin/
+
+COPY deploy/coolify/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+# Nginx health check — /nginx-health defined in nginx.conf.
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD wget -qO- http://127.0.0.1/nginx-health || exit 1

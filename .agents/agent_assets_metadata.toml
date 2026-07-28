@@ -1,0 +1,91 @@
+uploads = []
+
+[[generated]]
+id = "Ye_KwH0L-7QgC9MBy6YT8"
+uri = "file://attached_assets/generated_images/generated_new-cars_showroom_lineup.png"
+type = "image"
+title = "Generated new-cars showroom lineup"
+
+[[outputs]]
+id = "l7EkuKcHzr505Bao15F_C"
+uri = "file://attached_assets/screenshots/10560eed-bc01-46c4-9db9-1c90e30d4ffa-00-3e831fkvz4woy_expo_janeway_replit_dev.png"
+type = "image"
+title = "BANCO يعمل على المتصفح — دليل أن المشروع وصل صح"
+
+[[outputs]]
+id = "IOwe_TgKMFjEfoidJn5RM"
+uri = "file://attached_assets/stock_images/cat_facilities.jpg"
+type = "image"
+title = "large industrial factory manufacturing plant building exterior with open land"
+
+[[outputs]]
+id = "HW9UowVIjezb5NLkF27Ww"
+uri = "file://attached_assets/stock_images/cat_car.jpg"
+type = "image"
+title = "rows of modern cars parked at a car dealership showroom lot, daylight"
+
+[[outputs]]
+id = "ePCP5zKOga3INlt10yQSu"
+uri = "file://attached_assets/stock_images/cat_real_estate.jpg"
+type = "image"
+title = "modern residential apartment buildings and houses, real estate exterior"
+
+[[outputs]]
+id = "ryWRYaDaCRLVuyXR3Jce2"
+uri = "file://attached_assets/stock_images/cat_materials.jpg"
+type = "image"
+title = "industrial steel raw materials stacked and a factory production line"
+
+[[outputs]]
+id = "QoCui-bNcUCtNCJvS7Z8U"
+uri = "file://attached_assets/stock_images/cat_materials2.jpg"
+type = "image"
+title = "stacked steel pipes and metal raw materials in an industrial warehouse"
+
+[[outputs]]
+id = "u-xw3bwzjF-tIAxpflgoF"
+uri = "file://attached_assets/stock_images/cat_facilities2.jpg"
+type = "image"
+title = "modern industrial factory plant building exterior, clean professional, blue sky"
+
+[[outputs]]
+id = "Rs2CDm-byahxW5N3PkRhM"
+uri = "file://attached_assets/stock_images/cat_villa.jpg"
+type = "image"
+title = "luxury modern villa exterior with pool and garden, elegant residential, daylight"
+
+[[outputs]]
+id = "ZRzCysWeZrVdMIlMpaXLy"
+uri = "file://attached_assets/stock_images/cat_car3.jpg"
+type = "image"
+title = "row of brand new shiny cars lined up in a modern premium dealership showroom"
+
+[[outputs]]
+id = "lADBVP0ABBM0AzQxk7h93"
+uri = "file://attached_assets/stock_images/new_cars_showroom_lineup_1.jpg"
+type = "image"
+title = "row of brand new cars lined up front view in a bright modern car dealership showroom"
+
+[[outputs]]
+id = "RDSbbl1cqlVtaf3g8Bchi"
+uri = "file://attached_assets/stock_images/new_cars_showroom_lineup_2.jpg"
+type = "image"
+title = "row of brand new cars lined up front view in a bright modern car dealership showroom"
+
+[[outputs]]
+id = "vPUZpkpPu0kQuZiF4laM1"
+uri = "file://attached_assets/stock_images/new_cars_showroom_lineup_3.jpg"
+type = "image"
+title = "row of brand new cars lined up front view in a bright modern car dealership showroom"
+
+[[outputs]]
+id = "BYtUsfnqa63EbpVhmInh8"
+uri = "file://attached_assets/stock_images/new_cars_showroom_lineup_4.jpg"
+type = "image"
+title = "row of brand new cars lined up front view in a bright modern car dealership showroom"
+
+[[outputs]]
+id = "cTP31Q7keqER8-T7i3W_3"
+uri = "file://database_backup.dump.gz"
+type = "unspecified"
+title = "database_backup.dump.gz — نسخة احتياطية مضغوطة للقاعدة الحالية"

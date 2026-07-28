@@ -1,0 +1,30 @@
+{
+  "name": "@workspace/banco-website",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0 --port 3000",
+    "build": "next build",
+    "start": "next start --hostname 0.0.0.0 --port 3000",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^6.12.0",
+    "@clerk/themes": "^2.4.57",
+    "@tanstack/react-query": "catalog:",
+    "@workspace/api-client-react": "workspace:*",
+    "@workspace/design-tokens": "workspace:*",
+    "@workspace/search-contract": "workspace:*",
+    "@workspace/taxonomy": "workspace:*",
+    "@vis.gl/react-google-maps": "^1.8.3",
+    "next": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "~5.9.3"
+  }
+}

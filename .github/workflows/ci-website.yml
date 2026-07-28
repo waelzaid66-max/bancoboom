@@ -1,0 +1,252 @@
+name: CI Website
+
+# W0 — consumer web is isolated from core CI. A failing landing/banco-web build
+# must not block mobile-regression or API deploy gates in ci.yml.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "artifacts/landing/**"
+      - "artifacts/banco-web/**"
+      - "artifacts/banco-website/**"
+      - "lib/design-tokens/**"
+      - "lib/search-contract/**"
+      - "lib/api-client-react/**"
+      - "lib/taxonomy/**"
+      - "lib/api-spec/**"
+      - "eslint.config.mjs"
+      - "scripts/website-ci-local.mjs"
+      - "scripts/website-staging-smoke.mjs"
+      - "scripts/website-seo-static-audit.mjs"
+      - "scripts/website-lighthouse-smoke.mjs"
+      - "scripts/website-bundle-budget.mjs"
+      - "deploy/aws/Dockerfile.banco-web"
+      - "scripts/verify-website-boundaries.mjs"
+      - "scripts/website-journey-parity-audit.mjs"
+      - "scripts/website-seller-workspace-parity-audit.mjs"
+      - "scripts/website-market-copy-parity-audit.mjs"
+      - "scripts/website-responsive-chrome-audit.mjs"
+      - "scripts/website-plug-hardening-audit.mjs"
+      - "scripts/website-staging-prep-audit.mjs"
+      - "scripts/website-soft-launch-prep-audit.mjs"
+      - "scripts/website-rewrite-config-audit.mjs"
+      - "scripts/upload-website-preview.mjs"
+      - "deploy/aws/docker-compose.banco-web.yml"
+      - "deploy/aws/env/**"
+      - "audit/website/**"
+      - ".github/workflows/ci-website.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+  pull_request:
+    paths:
+      - "artifacts/landing/**"
+      - "artifacts/banco-web/**"
+      - "artifacts/banco-website/**"
+      - "lib/design-tokens/**"
+      - "lib/search-contract/**"
+      - "lib/api-client-react/**"
+      - "lib/taxonomy/**"
+      - "lib/api-spec/**"
+      - "eslint.config.mjs"
+      - "scripts/website-ci-local.mjs"
+      - "scripts/website-staging-smoke.mjs"
+      - "scripts/website-seo-static-audit.mjs"
+      - "scripts/website-lighthouse-smoke.mjs"
+      - "scripts/website-bundle-budget.mjs"
+      - "deploy/aws/Dockerfile.banco-web"
+      - "scripts/verify-website-boundaries.mjs"
+      - "scripts/website-journey-parity-audit.mjs"
+      - "scripts/website-seller-workspace-parity-audit.mjs"
+      - "scripts/website-market-copy-parity-audit.mjs"
+      - "scripts/website-responsive-chrome-audit.mjs"
+      - "scripts/website-plug-hardening-audit.mjs"
+      - "scripts/website-staging-prep-audit.mjs"
+      - "scripts/website-soft-launch-prep-audit.mjs"
+      - "scripts/website-rewrite-config-audit.mjs"
+      - "deploy/aws/docker-compose.banco-web.yml"
+      - "deploy/aws/env/**"
+      - "audit/website/**"
+      - "scripts/upload-website-preview.mjs"
+      - ".github/workflows/ci-website.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-website-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-website:
+    name: Build consumer web
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify website import boundaries
+        run: node scripts/verify-website-boundaries.mjs
+      - name: Phase 2 journey parity audit
+        run: node scripts/website-journey-parity-audit.mjs
+      - name: Phase 3 seller workspace parity audit
+        run: node scripts/website-seller-workspace-parity-audit.mjs
+      - name: Phase 4 Market copy parity audit
+        run: node scripts/website-market-copy-parity-audit.mjs
+      - name: Phase 5 responsive chrome audit
+        run: node scripts/website-responsive-chrome-audit.mjs
+      - name: Phase 6 plug hardening audit
+        run: node scripts/website-plug-hardening-audit.mjs
+      - name: Phase 7 staging prep audit
+        run: node scripts/website-staging-prep-audit.mjs
+      - name: Phase 8 soft-launch prep audit
+        run: node scripts/website-soft-launch-prep-audit.mjs
+      - name: Share rewrite config audit
+        run: node scripts/website-rewrite-config-audit.mjs
+      - name: ESLint website surfaces
+        run: pnpm run lint:website
+      - name: Typecheck design-tokens + web apps
+        run: >-
+          pnpm --filter @workspace/design-tokens run typecheck
+          && pnpm --filter @workspace/search-contract run typecheck
+          && pnpm --filter @workspace/landing run typecheck
+          && pnpm --filter @workspace/banco-web run typecheck
+          && pnpm --filter @workspace/banco-website run typecheck
+      - name: Test search-contract
+        run: pnpm --filter @workspace/search-contract run test
+      - name: Mobile lib smoke (search-contract parity)
+        run: pnpm --filter @workspace/banco-mobile run test:lib
+      - name: Build landing + banco-web + banco-website
+        run: >-
+          pnpm --filter @workspace/landing run build
+          && pnpm --filter @workspace/banco-web run build
+          && pnpm --filter @workspace/banco-website run build
+      - name: SEO static audit (hub pages)
+        run: node scripts/website-seo-static-audit.mjs
+      - name: Bundle budget (banco-web chunks)
+        run: node scripts/website-bundle-budget.mjs
+      - name: Start banco-web for Lighthouse
+        run: pnpm --filter @workspace/banco-web start &
+      - uses: browser-actions/setup-chrome@v1
+      - name: Wait for banco-web health
+        # Probe the app's own home page (server-rendered, no backend needed) rather
+        # than /api/health, which next.config rewrites to the upstream API that is
+        # not running in this isolated website job — so it could never become ready.
+        run: npx --yes wait-on@8.0.1 -t 120000 http://127.0.0.1:3000/
+      - name: Lighthouse SEO smoke
+        run: node scripts/website-lighthouse-smoke.mjs
+        env:
+          BANCO_WEB_URL: http://127.0.0.1:3000
+          WEBSITE_MIN_SEO_SCORE: "85"
+          WEBSITE_LIGHTHOUSE_PATHS: "/,/cars,/directory,/en,/en/cars,/en/directory"
+      - name: Upload landing preview to GCS (optional)
+        id: gcs_preview
+        if: github.event_name == 'pull_request'
+        env:
+          WEBSITE_PREVIEW_GCS_BUCKET: ${{ secrets.WEBSITE_PREVIEW_GCS_BUCKET }}
+          WEBSITE_PREVIEW_PR: ${{ github.event.pull_request.number }}
+          WEBSITE_PREVIEW_PUBLIC_BASE: ${{ secrets.WEBSITE_PREVIEW_PUBLIC_BASE }}
+        run: node scripts/upload-website-preview.mjs
+      - name: Upload landing static preview
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: landing-preview-pr-${{ github.event.pull_request.number }}
+          path: artifacts/landing/dist/public
+          retention-days: 14
+          if-no-files-found: error
+      - name: Post website preview comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PREVIEW_URL: ${{ steps.gcs_preview.outputs.preview_url }}
+        with:
+          script: |
+            const marker = "<!-- banco-website-preview -->";
+            const pr = Number(process.env.PR_NUMBER);
+            const runUrl = process.env.RUN_URL;
+            const sha = (process.env.HEAD_SHA || "").slice(0, 7);
+            const artifactName = `landing-preview-pr-${pr}`;
+            const previewUrl = process.env.PREVIEW_URL?.trim();
+
+            const previewLines = [
+              "### Preview artifacts",
+              `- Download **${artifactName}** from the [workflow run](${runUrl}) (Artifacts section).`,
+              "- Serve locally: `npx serve artifacts/landing/dist/public` after extract.",
+            ];
+            if (previewUrl) {
+              previewLines.push(`- **Live GCS preview:** ${previewUrl}`);
+            } else {
+              previewLines.push(
+                "> Live GCS preview activates when `WEBSITE_PREVIEW_GCS_BUCKET` + `WEBSITE_PREVIEW_PUBLIC_BASE` secrets are set.",
+              );
+            }
+
+            const body = [
+              marker,
+              "## 🌐 Website CI preview",
+              "",
+              `Build **passed** for \`${sha}\`.`,
+              "",
+              "| Surface | Status |",
+              "|---------|--------|",
+              "| landing (static) | ✅ artifact uploaded |",
+              "| banco-web (Next.js) | ✅ production build |",
+              "| SEO hub audit | ✅ |",
+              "| Lighthouse SEO | ✅ |",
+              "| bundle budget | ✅ |",
+              "| search-contract tests | ✅ |",
+              "| mobile lib smoke | ✅ |",
+              "| boundary guard | ✅ |",
+              "",
+              ...previewLines,
+              "",
+              "### banco-web local smoke",
+              "```bash",
+              "pnpm --filter @workspace/api-server run dev   # :5000",
+              "pnpm --filter @workspace/banco-web run dev    # :3000",
+              "```",
+              "",
+              "### Staging deploy smoke (after CDN deploy)",
+              "```bash",
+              "BANCO_WEB_URL=https://staging.example.com node scripts/website-staging-smoke.mjs",
+              "```",
+            ].join("\n");
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+              per_page: 100,
+            });
+
+            const existing = comments.find((c) =>
+              c.user?.type === "Bot" && c.body?.includes(marker),
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+                body,
+              });
+            }

@@ -1,0 +1,42 @@
+name: Sync bancooom (GCP deploy repo)
+
+# Full copy of primary main → waelzaid66-max/bancooom for Cloud Build triggers.
+# Secret: BANCOOOM_SYNC_TOKEN (classic PAT with repo scope on bancooom).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Annotated tag on bancooom (deploy snapshot)"
+        required: true
+        default: "deploy-main"
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Push main → bancooom
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout primary
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require sync token
+        run: |
+          if [ -z "${{ secrets.BANCOOOM_SYNC_TOKEN }}" ]; then
+            echo "::error::Set repository secret BANCOOOM_SYNC_TOKEN (PAT with push to bancooom)."
+            exit 1
+          fi
+
+      - name: GCP config gate
+        run: node scripts/verify-gcp-docker-build-config.mjs
+
+      - name: Publish to bancooom
+        env:
+          BANCOOOM_SYNC_TOKEN: ${{ secrets.BANCOOOM_SYNC_TOKEN }}
+        run: |
+          chmod +x scripts/publish-bancooom-deploy.sh
+          ./scripts/publish-bancooom-deploy.sh "${{ inputs.tag }}"

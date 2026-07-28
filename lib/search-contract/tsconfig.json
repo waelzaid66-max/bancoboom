@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "src",
+    "moduleResolution": "bundler",
+    "lib": ["es2022", "DOM"]
+  },
+  "include": ["src/**/*.ts"]
+}

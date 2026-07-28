@@ -1,0 +1,20 @@
+# Keep Cloud Build upload small; never ship secrets. Context = repo root.
+.git
+**/.git
+**/node_modules
+**/dist
+**/.expo
+**/.turbo
+**/coverage
+**/.vscode
+**/.idea
+**/*.log
+**/.env
+**/.env.*
+!**/.env.*.example
+.secrets
+database_backup.dump
+database_backup.dump.gz
+attached_assets
+artifacts/banco-mobile/dist
+deploy/aws/reports
