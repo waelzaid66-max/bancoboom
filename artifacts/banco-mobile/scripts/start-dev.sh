@@ -23,5 +23,16 @@ export EXPO_PACKAGER_PROXY_URL="https://${REPLIT_EXPO_DEV_DOMAIN}"
 export EXPO_PUBLIC_REPL_ID="${REPL_ID:-}"
 export REACT_NATIVE_PACKAGER_HOSTNAME="${REPLIT_DEV_DOMAIN}"
 
+# app.json carries owner/projectId (required for EAS builds). With those set,
+# `expo start` in CI tries to authenticate against Expo's servers and dies with
+# "Use the EXPO_TOKEN environment variable" — killing Metro and leaving Expo Go
+# with the 500 error screen. Dev Metro must never phone home: run offline.
+# (EAS builds set their own EXPO_TOKEN and don't go through this script.)
+export EXPO_OFFLINE=1
+
+# Restarts under CI=1 are non-interactive: if a previous Metro still holds the
+# port, expo prompts "Use port X instead?" and exits. Free the port up front.
+fuser -k "${PORT:-8081}/tcp" 2>/dev/null || true
+
 echo "Starting BANCO Mobile with Clerk configuration and API port 8080."
 exec pnpm exec expo start --localhost --clear --port "${PORT:-8081}"
