@@ -20,6 +20,7 @@
 - [BANCO orval react hooks](banco-orval-hooks-react.md) — hooks return full {data,error,meta} envelope (unwrap .data?.data); passing any query option requires queryKey (react-query v5)
 - [BANCO mobile contact/apply loop](banco-mobile-contact-loop.md) — no chat/notifications backend; contact+apply+business "notifications" all go through trackLead+getDealerLeads; never fake stored chat
 - [BANCO signup pending refs](banco-signup-pending-refs.md) — post-signup intent refs (consent/phone/business-route) must clear on EVERY abandonment path or a returning sign-in inherits them
+- [BANCO Expo Go environment contract](banco-expo-go-env.md) — dev Metro must retain shared Clerk config and use API port 8080; never overwrite public values from production-only vars
 - [BANCO saves sync (mobile)](banco-saves-sync.md) — signed-in saves = optimistic+backend TOGGLE (non-idempotent, guard reconcile); guests can't save (auth-gated)
 - [BANCO mobile auth gate](banco-auth-gate.md) — useAuthGate().requireAuth() is the one guest→sign-up funnel; AuthGateProvider above SessionProvider; listing/[id] lock catches ALL guest detail paths
 - [BANCO pnpm override precedence](banco-pnpm-overrides.md) — pnpm v11+ IGNORES package.json pnpm.overrides; overrides live ONLY in pnpm-workspace.yaml now; exact pins bypass minimumReleaseAge:1440

@@ -5,7 +5,6 @@ import {
 } from "@workspace/api-client-react";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
@@ -35,8 +34,14 @@ import { routeForNotification } from "@/lib/notificationRouting";
 const isExpoGo =
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
+function getNotifications() {
+  if (isExpoGo) return null;
+  return require("expo-notifications") as typeof import("expo-notifications");
+}
+
 // Foreground presentation. SDK 53+ uses shouldShowBanner/shouldShowList.
-Notifications.setNotificationHandler({
+const notifications = getNotifications();
+notifications?.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
     shouldShowList: true,
@@ -65,7 +70,9 @@ function navigateWhenReady(dest: Parameters<typeof router.push>[0], attempt = 0)
   }
 }
 
-function handleResponse(response: Notifications.NotificationResponse | null) {
+function handleResponse(
+  response: import("expo-notifications").NotificationResponse | null,
+) {
   if (!response) return;
   const data = (response.notification.request.content.data ?? {}) as Record<
     string,
@@ -80,25 +87,26 @@ function handleResponse(response: Notifications.NotificationResponse | null) {
 async function obtainExpoPushToken(): Promise<string | null> {
   // Push tokens require a physical device; web/simulators can't get one.
   if (Platform.OS === "web") return null;
-  if (isExpoGo) return null;
+  const notifications = getNotifications();
+  if (!notifications) return null;
   if (!Device.isDevice) return null;
 
   if (Platform.OS === "android") {
     // HIGH importance = heads-up banner + sound — the standard for
     // messaging-style pings (new message / lead / booking). DEFAULT played the
     // sound but never peeked, so users routinely missed time-sensitive alerts.
-    await Notifications.setNotificationChannelAsync("default", {
+    await notifications.setNotificationChannelAsync("default", {
       name: "Default",
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: notifications.AndroidImportance.HIGH,
       sound: "default",
       vibrationPattern: [0, 250, 250, 250],
     });
   }
 
-  const current = await Notifications.getPermissionsAsync();
+  const current = await notifications.getPermissionsAsync();
   let status = current.status;
   if (status !== "granted") {
-    const requested = await Notifications.requestPermissionsAsync();
+    const requested = await notifications.requestPermissionsAsync();
     status = requested.status;
   }
   if (status !== "granted") return null;
@@ -107,7 +115,7 @@ async function obtainExpoPushToken(): Promise<string | null> {
     (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)
       ?.eas?.projectId ?? Constants.easConfig?.projectId;
 
-  const tokenResponse = await Notifications.getExpoPushTokenAsync(
+  const tokenResponse = await notifications.getExpoPushTokenAsync(
     projectId ? { projectId } : undefined,
   );
   return tokenResponse.data;
@@ -150,11 +158,12 @@ export function PushNotificationsBridge() {
 
   // Deep-link on tap: cold start (opened from a notification) + warm taps.
   useEffect(() => {
-    if (isExpoGo) return;
-    Notifications.getLastNotificationResponseAsync()
+    const notifications = getNotifications();
+    if (!notifications) return;
+    notifications.getLastNotificationResponseAsync()
       .then(handleResponse)
       .catch(() => {});
-    const sub = Notifications.addNotificationResponseReceivedListener(handleResponse);
+    const sub = notifications.addNotificationResponseReceivedListener(handleResponse);
     return () => sub.remove();
   }, []);
 

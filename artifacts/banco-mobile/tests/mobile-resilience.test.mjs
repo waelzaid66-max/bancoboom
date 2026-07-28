@@ -14,6 +14,8 @@ const LAYOUT = path.join(APP_ROOT, "app", "_layout.tsx");
 const CRASH_LOG = path.join(APP_ROOT, "lib", "crashLog.ts");
 const ERROR_BOUNDARY = path.join(APP_ROOT, "components", "ErrorBoundary.tsx");
 const SESSION = path.join(APP_ROOT, "context", "SessionContext.tsx");
+const PACKAGE = path.join(APP_ROOT, "package.json");
+const DEV_START = path.join(APP_ROOT, "scripts", "start-dev.sh");
 
 test("root layout installs global crash handler and ErrorBoundary", () => {
   const layout = fs.readFileSync(LAYOUT, "utf8");
@@ -33,6 +35,44 @@ test("ErrorBoundary resets on retry and reports errors", () => {
   const src = fs.readFileSync(ERROR_BOUNDARY, "utf8");
   assert.match(src, /getDerivedStateFromError/, "class boundary pattern");
   assert.match(src, /componentDidCatch/, "must catch render errors");
+});
+
+test("Expo Go startup keeps Clerk configuration and avoids unsupported push imports", () => {
+  const packageJson = JSON.parse(fs.readFileSync(PACKAGE, "utf8"));
+  const startScript = fs.readFileSync(DEV_START, "utf8");
+  const feed = fs.readFileSync(path.join(APP_ROOT, "app", "(tabs)", "index.tsx"), "utf8");
+  const push = fs.readFileSync(
+    path.join(APP_ROOT, "hooks", "usePushNotifications.tsx"),
+    "utf8",
+  );
+
+  assert.match(packageJson.scripts.dev, /bash scripts\/start-dev\.sh/);
+  assert.doesNotMatch(
+    packageJson.scripts.dev,
+    /EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=\$CLERK_PUBLISHABLE_KEY/,
+    "the development command must never overwrite the shared public key",
+  );
+  assert.match(
+    startScript,
+    /EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is required/,
+    "startup must fail before Metro can create a bad bundle",
+  );
+  assert.match(
+    startScript,
+    /EXPO_PUBLIC_API_BASE_URL=.*:8080/,
+    "physical Expo clients need the API workflow's public port",
+  );
+  assert.doesNotMatch(
+    feed,
+    /^import\s+\*\s+as\s+Notifications\s+from\s+["']expo-notifications["'];/m,
+    "Expo Go must not load notifications at feed module initialization",
+  );
+  assert.doesNotMatch(
+    push,
+    /^import\s+\*\s+as\s+Notifications\s+from\s+["']expo-notifications["'];/m,
+    "Expo Go must not load notification APIs at push bridge initialization",
+  );
+  assert.match(push, /ExecutionEnvironment\.StoreClient/);
 });
 
 test("SessionContext documents offline-friendly cache path", () => {
