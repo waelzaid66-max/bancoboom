@@ -31,10 +31,10 @@ import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
 
-const clerkPubKey = publishableKeyFromHost(
-  window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
+// NOTE: key computation is deferred to ClerkProviderWithRoutes (inside the
+// component, not at module scope) so a missing/wrong-domain key in dev
+// shows a clean error overlay instead of crashing the entire module.
+// In production (banco.today) VITE_CLERK_PUBLISHABLE_KEY is always set.
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -43,8 +43,6 @@ function stripBase(path: string): string {
     ? path.slice(basePath.length) || "/"
     : path;
 }
-
-if (!clerkPubKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY');
 
 const clerkAppearance = {
   theme: shadcn,
@@ -186,6 +184,11 @@ function HomeRedirect() {
 }
 
 function ClerkProviderWithRoutes() {
+  const clerkPubKey = publishableKeyFromHost(
+    window.location.hostname,
+    import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+  );
+  if (!clerkPubKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY');
   const [, setLocation] = useLocation();
   return (
     <ClerkProvider

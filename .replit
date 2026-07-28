@@ -3,6 +3,8 @@ modules = ["nodejs-20", "python-3.12", "web"]
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
+run = ["bash", "scripts/replit-prod-start.sh"]
+build = ["bash", "scripts/replit-prod-build.sh"]
 
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]
