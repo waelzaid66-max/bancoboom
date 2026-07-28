@@ -1056,6 +1056,10 @@ export type AdminUserCompanyDetails = {
   city?: string | null;
   /** Uploaded verification document / ID photo URLs. */
   documents?: string[];
+  fi_license_number?: string | null;
+  fi_license_type?: string | null;
+  fi_regulator?: string | null;
+  fi_registry_number?: string | null;
 } | null;
 
 export interface AdminUser {
@@ -2499,6 +2503,21 @@ export const UpdateMeBodyBusinessActivityType = {
 } as const;
 
 /**
+ * FI only. Kind of licence held by the institution.
+ */
+export type UpdateMeBodyBusinessFiLicenseType = typeof UpdateMeBodyBusinessFiLicenseType[keyof typeof UpdateMeBodyBusinessFiLicenseType];
+
+
+export const UpdateMeBodyBusinessFiLicenseType = {
+  bank: 'bank',
+  financing_company: 'financing_company',
+  leasing: 'leasing',
+  microfinance: 'microfinance',
+  insurance: 'insurance',
+  other: 'other',
+} as const;
+
+/**
  * When present, upgrades the account to a Banco Business (dealer) seller.
  */
 export type UpdateMeBodyBusiness = {
@@ -2511,6 +2530,14 @@ export type UpdateMeBodyBusiness = {
   city: string;
   /** Optional verification document/photo URLs (already uploaded to object storage) submitted for admin review. */
   documents?: string[];
+  /** FI only. Regulator-issued licence number. Collected on the financial-institution onboarding path so a bank is never verified on the same evidence as a car dealer. */
+  fi_license_number?: string;
+  /** FI only. Kind of licence held by the institution. */
+  fi_license_type?: UpdateMeBodyBusinessFiLicenseType;
+  /** FI only. Supervising authority that issued the licence (e.g. Central Bank of Egypt, FRA). A licence number is meaningless without knowing who issued it. */
+  fi_regulator?: string;
+  /** FI only. Registry/record number held with the regulator. */
+  fi_registry_number?: string;
 };
 
 export type UpdateMeBody = {

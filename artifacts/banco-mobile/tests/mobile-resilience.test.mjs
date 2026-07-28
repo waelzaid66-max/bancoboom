@@ -129,3 +129,90 @@ test("bookings screen honors role query param (guest|host)", () => {
     "must accept explicit guest|host from notification deep-links",
   );
 });
+
+// The production Clerk tenant (clerk.banco.today) has an EMPTY social provider
+// dictionary — email+password and email OTP only. Rendering Google/Facebook/
+// Apple buttons unconditionally made startSSOFlow throw and showed the user a
+// dead-end "Sign-in failed. Please try again." dialog. Buttons must be gated on
+// what the tenant actually reports as enabled.
+test("social sign-in buttons are gated on tenant-enabled providers", () => {
+  const src = fs.readFileSync(path.join(APP_ROOT, "app", "(tabs)", "profile.tsx"), "utf8");
+  assert.match(
+    src,
+    /useSocialProviders\s*\(/,
+    "auth sheet must resolve enabled providers from the Clerk tenant",
+  );
+  for (const provider of ["google", "facebook", "apple"]) {
+    assert.match(
+      src,
+      new RegExp(`socialProviders\\.includes\\(["']${provider}["']\\)`),
+      `${provider} button must be gated on the tenant having it enabled`,
+    );
+  }
+  // A generic retry prompt on a dashboard-misconfigured strategy is an infinite
+  // loop for the user — the real Clerk reason must reach the alert.
+  assert.match(
+    src,
+    /longMessage/,
+    "SSO failures must surface the real Clerk error, not only a generic retry",
+  );
+});
+
+// Clerk sign-in is a multi-step state machine. The live banco.today tenant
+// verifies the password and then returns `needs_second_factor` with an
+// email_code (proven against the live tenant: prepare_second_factor -> 200,
+// verification_otp/email_code). Code that only honoured `status === "complete"`
+// silently dropped every correct email+password, so no real user could sign in.
+// Each non-complete status must be driven to its next step, never ignored.
+test("sign-in handles every non-complete Clerk status", () => {
+  const src = fs.readFileSync(path.join(APP_ROOT, "app", "(tabs)", "profile.tsx"), "utf8");
+  assert.match(
+    src,
+    /needs_second_factor/,
+    "password sign-in must handle needs_second_factor, not just complete",
+  );
+  assert.match(
+    src,
+    /signIn\.mfa\.sendEmailCode\s*\(/,
+    "email second factor must be dispatched before asking for the code",
+  );
+  assert.match(
+    src,
+    /signIn\.mfa\.verifyEmailCode\s*\(/,
+    "email second-factor code must be verified",
+  );
+  // A user with an authenticator app or recovery codes must not be locked out
+  // just because this tenant currently prefers email.
+  for (const fn of ["verifyTOTP", "verifyBackupCode", "verifyPhoneCode"]) {
+    assert.match(
+      src,
+      new RegExp(`signIn\\.mfa\\.${fn}\\s*\\(`),
+      `${fn} must be supported so enrolled users are never stranded`,
+    );
+  }
+  assert.match(
+    src,
+    /step\s*===\s*"mfa"/,
+    "a second-factor screen must exist to collect the code",
+  );
+  assert.match(
+    src,
+    /needs_new_password/,
+    "needs_new_password must route into the reset flow instead of dead-ending",
+  );
+});
+
+test("social provider resolution fails closed", () => {
+  const src = fs.readFileSync(path.join(APP_ROOT, "hooks", "useSocialProviders.ts"), "utf8");
+  assert.match(
+    src,
+    /enabled\s*===\s*true/,
+    "only strategies explicitly enabled by the tenant may render",
+  );
+  assert.match(src, /AbortController/, "environment probe must be time-bounded");
+  assert.doesNotMatch(
+    src,
+    /return\s+SUPPORTED\s*;/,
+    "must never fall back to assuming all providers are available",
+  );
+});

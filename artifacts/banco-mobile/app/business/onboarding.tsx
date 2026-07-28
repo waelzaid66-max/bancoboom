@@ -33,6 +33,32 @@ type VerificationDoc = { localUri: string; url: string };
 
 type Activity = keyof typeof UpdateMeBodyBusinessActivityType;
 
+type FiLicenseType =
+  | "bank"
+  | "financing_company"
+  | "leasing"
+  | "microfinance"
+  | "insurance"
+  | "other";
+
+const FI_LICENSE_TYPES: readonly {
+  value: FiLicenseType;
+  labelKey:
+    | "business.fiTypeBank"
+    | "business.fiTypeFinancingCompany"
+    | "business.fiTypeLeasing"
+    | "business.fiTypeMicrofinance"
+    | "business.fiTypeInsurance"
+    | "business.fiTypeOther";
+}[] = [
+  { value: "bank", labelKey: "business.fiTypeBank" },
+  { value: "financing_company", labelKey: "business.fiTypeFinancingCompany" },
+  { value: "leasing", labelKey: "business.fiTypeLeasing" },
+  { value: "microfinance", labelKey: "business.fiTypeMicrofinance" },
+  { value: "insurance", labelKey: "business.fiTypeInsurance" },
+  { value: "other", labelKey: "business.fiTypeOther" },
+];
+
 const ACTIVITIES: {
   value: Activity;
   icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
@@ -72,6 +98,12 @@ export default function BusinessOnboardingScreen() {
   const [tradeName, setTradeName] = useState("");
   const [city, setCity] = useState("");
   const [phone, setPhone] = useState("");
+  // FI-only regulatory identity. A financial institution must not be verified on
+  // the same evidence as a car dealer (audit S2: shared onboarding form).
+  const [fiLicenseNumber, setFiLicenseNumber] = useState("");
+  const [fiLicenseType, setFiLicenseType] = useState<FiLicenseType | null>(null);
+  const [fiRegulator, setFiRegulator] = useState("");
+  const [fiRegistryNumber, setFiRegistryNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -317,6 +349,24 @@ export default function BusinessOnboardingScreen() {
       setError(t("business.errCity"));
       return;
     }
+    if (fiIntent || activity === "financial_institution") {
+      if (!fiLicenseNumber.trim()) {
+        setError(t("business.errFiLicenseNumber"));
+        return;
+      }
+      if (!fiLicenseType) {
+        setError(t("business.errFiLicenseType"));
+        return;
+      }
+      if (!fiRegulator.trim()) {
+        setError(t("business.errFiRegulator"));
+        return;
+      }
+      if (!fiRegistryNumber.trim()) {
+        setError(t("business.errFiRegistryNumber"));
+        return;
+      }
+    }
     setError(null);
     setSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -345,6 +395,15 @@ export default function BusinessOnboardingScreen() {
           ...(tradeName.trim() ? { trade_name: tradeName.trim() } : {}),
           city: city.trim(),
           ...(documentUrls.length > 0 ? { documents: documentUrls } : {}),
+          // Sent only on the FI path so dealer/factory payloads stay unchanged.
+          ...(isFi && fiLicenseType
+            ? {
+                fi_license_number: fiLicenseNumber.trim(),
+                fi_license_type: fiLicenseType,
+                fi_regulator: fiRegulator.trim(),
+                fi_registry_number: fiRegistryNumber.trim(),
+              }
+            : {}),
         },
       });
       // Refresh Clerk so the new role is reflected across the app.
@@ -700,6 +759,140 @@ export default function BusinessOnboardingScreen() {
           testID="business-phone-input"
         />
 
+        {(fiIntent || activity === "financial_institution") && (
+          <View style={styles.fiBlock}>
+            <AppText
+              style={[
+                styles.label,
+                { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
+              ]}
+            >
+              {t("business.fiSectionTitle")}
+            </AppText>
+            <AppText
+              style={[
+                styles.docsHint,
+                {
+                  color: colors.mutedForeground,
+                  textAlign: isRTL ? "right" : "left",
+                },
+              ]}
+            >
+              {t("business.fiSectionNote")}
+            </AppText>
+
+            <AppText
+              style={[
+                styles.label,
+                { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
+              ]}
+            >
+              {t("business.fiLicenseNumber")}
+            </AppText>
+            <TextInput
+              value={fiLicenseNumber}
+              onChangeText={(v) => {
+                setFiLicenseNumber(v);
+                setError(null);
+              }}
+              placeholder={t("business.fiLicenseNumberPlaceholder")}
+              placeholderTextColor={colors.mutedForeground}
+              style={inputStyle}
+              autoCorrect={false}
+              autoCapitalize="characters"
+              testID="fi-license-number-input"
+            />
+
+            <AppText
+              style={[
+                styles.label,
+                { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
+              ]}
+            >
+              {t("business.fiLicenseType")}
+            </AppText>
+            <View style={[styles.fiTypeRow, isRTL && styles.rowReverse]}>
+              {FI_LICENSE_TYPES.map((option) => {
+                const selected = fiLicenseType === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    onPress={() => {
+                      setFiLicenseType(option.value);
+                      setError(null);
+                    }}
+                    style={[
+                      styles.fiTypeChip,
+                      {
+                        borderColor: selected ? colors.primary : colors.border,
+                        backgroundColor: selected ? colors.primary : colors.card,
+                        borderRadius: colors.radius,
+                      },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    testID={`fi-license-type-${option.value}`}
+                  >
+                    <AppText
+                      style={[
+                        styles.fiTypeChipText,
+                        {
+                          color: selected
+                            ? colors.primaryForeground
+                            : colors.foreground,
+                        },
+                      ]}
+                    >
+                      {t(option.labelKey)}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <AppText
+              style={[
+                styles.label,
+                { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
+              ]}
+            >
+              {t("business.fiRegulator")}
+            </AppText>
+            <TextInput
+              value={fiRegulator}
+              onChangeText={(v) => {
+                setFiRegulator(v);
+                setError(null);
+              }}
+              placeholder={t("business.fiRegulatorPlaceholder")}
+              placeholderTextColor={colors.mutedForeground}
+              style={inputStyle}
+              testID="fi-regulator-input"
+            />
+
+            <AppText
+              style={[
+                styles.label,
+                { color: colors.foreground, textAlign: isRTL ? "right" : "left" },
+              ]}
+            >
+              {t("business.fiRegistryNumber")}
+            </AppText>
+            <TextInput
+              value={fiRegistryNumber}
+              onChangeText={(v) => {
+                setFiRegistryNumber(v);
+                setError(null);
+              }}
+              placeholder={t("business.fiRegistryNumberPlaceholder")}
+              placeholderTextColor={colors.mutedForeground}
+              style={inputStyle}
+              autoCorrect={false}
+              testID="fi-registry-number-input"
+            />
+          </View>
+        )}
+
         <AppText
           style={[
             styles.label,
@@ -968,6 +1161,24 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     marginBottom: 10,
     lineHeight: 17,
+  },
+  fiBlock: {
+    marginTop: 4,
+  },
+  fiTypeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 14,
+  },
+  fiTypeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+  },
+  fiTypeChipText: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
   },
   docsGrid: {
     flexDirection: "row",

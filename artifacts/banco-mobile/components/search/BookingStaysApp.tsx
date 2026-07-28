@@ -68,7 +68,10 @@ const ALL_TAB = "__all__";
 // taxonomy so the tab wording always matches create/search. Rental TERM is a
 // secondary strip under the market matrix (also in FilterSheet) — both drive
 // the same criteria.rentalTerm axis.
-const STAY_TYPE_VALUES = ["studio", "apartment", "villa", "chalet"] as const;
+// "office" added: serviced / furnished offices are bookable daily stays.
+// The label comes from PROPERTY_TYPES ("Office" / "مكتب") — same taxonomy
+// used everywhere else so the copy is never out of sync.
+const STAY_TYPE_VALUES = ["studio", "apartment", "villa", "chalet", "office"] as const;
 const STAY_TYPE_OPTIONS = [...STAY_TYPE_VALUES];
 
 /** Deterministic, key-sorted serialization used for baseline-delta dirty checks

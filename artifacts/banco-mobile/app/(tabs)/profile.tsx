@@ -23,6 +23,7 @@ import {
   type SocialLinkPlatform,
 } from "@workspace/api-client-react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useSocialProviders } from "@/hooks/useSocialProviders";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -56,7 +57,7 @@ import { buildAvatarDataUri, uploadMediaAsset } from "@/lib/upload";
 WebBrowser.maybeCompleteAuthSession();
 
 type Mode = "signin" | "signup";
-type Step = "form" | "verify" | "reset";
+type Step = "form" | "verify" | "reset" | "mfa";
 
 const CONSENT_VERSION = "2026-06-11";
 
@@ -123,6 +124,10 @@ export default function ProfileScreen() {
   const { user, isLoaded } = useUser();
   const { signOut } = useAuth();
   const { startSSOFlow } = useSSO();
+  // Only render the social buttons this Clerk tenant can actually complete.
+  // The production tenant has no social providers enabled, so unconditionally
+  // showing them produced a guaranteed "Sign-in failed" dead end.
+  const { providers: socialProviders } = useSocialProviders();
 
   const [mode, setMode] = useState<Mode>("signin");
   const [step, setStep] = useState<Step>("form");
@@ -130,6 +135,10 @@ export default function ProfileScreen() {
   const [password, setPassword] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
   const [resetCode, setResetCode] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaStrategy, setMfaStrategy] = useState<
+    "email_code" | "phone_code" | "totp" | "backup_code" | null
+  >(null);
   const [newPassword, setNewPassword] = useState("");
   const [resetSending, setResetSending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -440,6 +449,43 @@ export default function ProfileScreen() {
     }
   };
 
+  // Clerk sign-in is a multi-step state machine, NOT a boolean. On the live
+  // banco.today tenant the password verifies and Clerk then returns
+  // `needs_second_factor` with an email code. Handling only "complete" meant
+  // every correct email+password was silently discarded and no real user could
+  // ever get in. Each non-complete status must be driven to its next step.
+  const beginSecondFactor = async (): Promise<boolean> => {
+    const supported = signIn.supportedSecondFactors ?? [];
+    const has = (s: string) => supported.some((f) => f.strategy === s);
+    // TOTP / backup codes are read from the user's own device, so there is
+    // nothing to dispatch. Code channels must be sent before we ask for input.
+    if (has("totp")) {
+      setMfaStrategy("totp");
+      setStep("mfa");
+      return true;
+    }
+    if (has("email_code")) {
+      const { error } = await signIn.mfa.sendEmailCode();
+      if (error) return false;
+      setMfaStrategy("email_code");
+      setStep("mfa");
+      return true;
+    }
+    if (has("phone_code")) {
+      const { error } = await signIn.mfa.sendPhoneCode();
+      if (error) return false;
+      setMfaStrategy("phone_code");
+      setStep("mfa");
+      return true;
+    }
+    if (has("backup_code")) {
+      setMfaStrategy("backup_code");
+      setStep("mfa");
+      return true;
+    }
+    return false;
+  };
+
   const handleSignIn = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const { error } = await signIn.password({ emailAddress: email, password });
@@ -447,6 +493,48 @@ export default function ProfileScreen() {
     if (signIn.status === "complete") {
       await signIn.finalize({ navigate: () => {} });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      return;
+    }
+    // Password accepted, second factor required (this tenant: email_code).
+    if (signIn.status === "needs_second_factor") {
+      const started = await beginSecondFactor();
+      if (!started) Alert.alert(t("profile.mfaUnavailable"));
+      return;
+    }
+    // Clerk asked us to reset the password before it will issue a session.
+    if (signIn.status === "needs_new_password") {
+      const { error: sendErr } = await signIn.resetPasswordEmailCode.sendCode();
+      if (!sendErr) {
+        setPassword("");
+        setStep("reset");
+      }
+      return;
+    }
+  };
+
+  const handleMfaVerify = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const code = mfaCode.trim();
+    const { error } =
+      mfaStrategy === "totp"
+        ? await signIn.mfa.verifyTOTP({ code })
+        : mfaStrategy === "phone_code"
+          ? await signIn.mfa.verifyPhoneCode({ code })
+          : mfaStrategy === "backup_code"
+            ? await signIn.mfa.verifyBackupCode({ code })
+            : await signIn.mfa.verifyEmailCode({ code });
+    if (error) return;
+    if (signIn.status === "complete") {
+      await signIn.finalize({ navigate: () => {} });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
+  const handleMfaResend = async () => {
+    if (mfaStrategy === "email_code") {
+      await signIn.mfa.sendEmailCode();
+    } else if (mfaStrategy === "phone_code") {
+      await signIn.mfa.sendPhoneCode();
     }
   };
 
@@ -534,8 +622,18 @@ export default function ProfileScreen() {
         await ssoSetActive({ session: createdSessionId });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-    } catch {
-      Alert.alert(t("profile.oauthFailed"));
+    } catch (err) {
+      // Surface the real Clerk reason instead of a bare "try again" — a generic
+      // retry prompt on a dashboard-misconfigured strategy is an infinite loop
+      // for the user and gives us nothing to debug from a screenshot.
+      const detail =
+        (err as { errors?: { longMessage?: string; message?: string }[] })
+          ?.errors?.[0]?.longMessage ??
+        (err as { errors?: { message?: string }[] })?.errors?.[0]?.message ??
+        (err as { message?: string })?.message ??
+        "";
+      console.warn("[profile] SSO failed", provider, detail || err);
+      Alert.alert(t("profile.oauthFailed"), detail || undefined);
     } finally {
       setOauthLoading(null);
     }
@@ -638,6 +736,8 @@ export default function ProfileScreen() {
     setLastName("");
     setVerifyCode("");
     setResetCode("");
+    setMfaCode("");
+    setMfaStrategy(null);
     setNewPassword("");
     setShowPassword(false);
     setShowNewPassword(false);
@@ -2450,6 +2550,118 @@ export default function ProfileScreen() {
     );
   }
 
+  // Second-factor step. The live banco.today tenant enforces an email code
+  // after the password verifies, so this screen is the difference between a
+  // user signing in and hitting a permanent dead end.
+  if (mode === "signin" && step === "mfa") {
+    return (
+      <KeyboardAwareScrollViewCompat
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={[
+          styles.authContent,
+          { paddingTop: topPad + 40 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <BancoLogo height={40} style={styles.authLogoImg} />
+        <LanguageToggle
+          lang={lang}
+          setLang={setLang}
+          colors={colors}
+          style={styles.authLangToggle}
+        />
+        <AppText style={[styles.authTitle, { color: colors.foreground }]}>
+          {t("profile.mfaTitle")}
+        </AppText>
+        <AppText
+          style={[styles.authSubtitle, { color: colors.mutedForeground }]}
+        >
+          {mfaStrategy === "totp"
+            ? t("profile.mfaTotp")
+            : mfaStrategy === "backup_code"
+              ? t("profile.mfaBackup")
+              : t("profile.mfaSentEmail", { email })}
+        </AppText>
+
+        <View style={styles.field}>
+          <TextInput
+            value={mfaCode}
+            onChangeText={setMfaCode}
+            placeholder={t("profile.codePlaceholder")}
+            placeholderTextColor={colors.mutedForeground}
+            style={inputStyle}
+            keyboardType={
+              mfaStrategy === "backup_code" ? "default" : "number-pad"
+            }
+            autoCapitalize="none"
+            testID="mfa-code-input"
+          />
+          {signInErrors?.fields?.code && (
+            <AppText style={[styles.error, { color: colors.destructive }]}>
+              {signInErrors.fields.code.message}
+            </AppText>
+          )}
+        </View>
+
+        <Pressable
+          onPress={handleMfaVerify}
+          disabled={!mfaCode.trim() || isSigningIn}
+          style={[
+            styles.authBtn,
+            {
+              backgroundColor:
+                !mfaCode.trim() || isSigningIn
+                  ? colors.secondary
+                  : colors.primary,
+              borderRadius: colors.radius,
+            },
+          ]}
+          testID="mfa-submit"
+        >
+          {isSigningIn ? (
+            <ActivityIndicator color={colors.primaryForeground} size="small" />
+          ) : (
+            <AppText
+              style={[styles.authBtnText, { color: colors.primaryForeground }]}
+            >
+              {t("profile.mfaSubmit")}
+            </AppText>
+          )}
+        </Pressable>
+
+        {(mfaStrategy === "email_code" || mfaStrategy === "phone_code") && (
+          <Pressable onPress={handleMfaResend} style={styles.switchBtn}>
+            <AppText
+              style={[styles.switchText, { color: colors.mutedForeground }]}
+            >
+              {t("profile.didntReceive")}
+              <AppText style={[styles.switchLink, { color: colors.primary }]}>
+                {t("profile.resend")}
+              </AppText>
+            </AppText>
+          </Pressable>
+        )}
+
+        <Pressable
+          onPress={() => {
+            setStep("form");
+            setMfaCode("");
+            setMfaStrategy(null);
+          }}
+          style={styles.switchBtn}
+        >
+          <AppText
+            style={[styles.switchText, { color: colors.mutedForeground }]}
+          >
+            <AppText style={[styles.switchLink, { color: colors.primary }]}>
+              {t("profile.goBack")}
+            </AppText>
+          </AppText>
+        </Pressable>
+      </KeyboardAwareScrollViewCompat>
+    );
+  }
+
   if (mode === "signin" && step === "reset") {
     return (
       <KeyboardAwareScrollViewCompat
@@ -2942,14 +3154,17 @@ export default function ProfileScreen() {
         <View nativeID="clerk-captcha" />
       )}
 
-      <View style={styles.oauthDivider}>
-        <View style={[styles.oauthLine, { backgroundColor: colors.border }]} />
-        <AppText style={[styles.oauthOr, { color: colors.mutedForeground }]}>
-          {t("profile.orDivider")}
-        </AppText>
-        <View style={[styles.oauthLine, { backgroundColor: colors.border }]} />
-      </View>
+      {socialProviders.length > 0 && (
+        <View style={styles.oauthDivider}>
+          <View style={[styles.oauthLine, { backgroundColor: colors.border }]} />
+          <AppText style={[styles.oauthOr, { color: colors.mutedForeground }]}>
+            {t("profile.orDivider")}
+          </AppText>
+          <View style={[styles.oauthLine, { backgroundColor: colors.border }]} />
+        </View>
+      )}
 
+      {socialProviders.includes("google") && (
       <Pressable
         onPress={() => handleOAuth("google")}
         disabled={!!oauthLoading}
@@ -2975,7 +3190,9 @@ export default function ProfileScreen() {
           </>
         )}
       </Pressable>
+      )}
 
+      {socialProviders.includes("facebook") && (
       <Pressable
         onPress={() => handleOAuth("facebook")}
         disabled={!!oauthLoading}
@@ -3001,8 +3218,9 @@ export default function ProfileScreen() {
           </>
         )}
       </Pressable>
+      )}
 
-      {Platform.OS !== "android" && (
+      {Platform.OS !== "android" && socialProviders.includes("apple") && (
         <Pressable
           onPress={() => handleOAuth("apple")}
           disabled={!!oauthLoading}

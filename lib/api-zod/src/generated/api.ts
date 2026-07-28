@@ -90,7 +90,11 @@ export const UpdateMeBody = zod.object({
   "trade_name": zod.string().optional().describe('Optional trade\/brand name (الاسم التجاري) shown publicly; falls back to business_name when omitted.'),
   "owner_name": zod.string().optional().describe('Optional name of the business owner \/ decision-maker, captured for verification.'),
   "city": zod.string(),
-  "documents": zod.array(zod.string().url()).optional().describe('Optional verification document\/photo URLs (already uploaded to object storage) submitted for admin review.')
+  "documents": zod.array(zod.string().url()).optional().describe('Optional verification document\/photo URLs (already uploaded to object storage) submitted for admin review.'),
+  "fi_license_number": zod.string().optional().describe('FI only. Regulator-issued licence number. Collected on the financial-institution onboarding path so a bank is never verified on the same evidence as a car dealer.\n'),
+  "fi_license_type": zod.enum(['bank', 'financing_company', 'leasing', 'microfinance', 'insurance', 'other']).optional().describe('FI only. Kind of licence held by the institution.'),
+  "fi_regulator": zod.string().optional().describe('FI only. Supervising authority that issued the licence (e.g. Central Bank of Egypt, FRA). A licence number is meaningless without knowing who issued it.\n'),
+  "fi_registry_number": zod.string().optional().describe('FI only. Registry\/record number held with the regulator.')
 }).optional().describe('When present, upgrades the account to a Banco Business (dealer) seller.')
 })
 
@@ -3025,7 +3029,11 @@ export const GetAdminUsersResponse = zod.object({
   "trade_name": zod.string().nullish(),
   "owner_name": zod.string().nullish(),
   "city": zod.string().nullish(),
-  "documents": zod.array(zod.string()).optional().describe('Uploaded verification document \/ ID photo URLs.')
+  "documents": zod.array(zod.string()).optional().describe('Uploaded verification document \/ ID photo URLs.'),
+  "fi_license_number": zod.string().nullish(),
+  "fi_license_type": zod.string().nullish(),
+  "fi_regulator": zod.string().nullish(),
+  "fi_registry_number": zod.string().nullish()
 }).nullish().describe('Business \/ FI onboarding payload used for KYC review (activity, names, city, document URLs). Null when the user never submitted business verification.\n')
 })).optional(),
   "error": zod.object({
@@ -3073,7 +3081,11 @@ export const SetUserBanResponse = zod.object({
   "trade_name": zod.string().nullish(),
   "owner_name": zod.string().nullish(),
   "city": zod.string().nullish(),
-  "documents": zod.array(zod.string()).optional().describe('Uploaded verification document \/ ID photo URLs.')
+  "documents": zod.array(zod.string()).optional().describe('Uploaded verification document \/ ID photo URLs.'),
+  "fi_license_number": zod.string().nullish(),
+  "fi_license_type": zod.string().nullish(),
+  "fi_regulator": zod.string().nullish(),
+  "fi_registry_number": zod.string().nullish()
 }).nullish().describe('Business \/ FI onboarding payload used for KYC review (activity, names, city, document URLs). Null when the user never submitted business verification.\n')
 }).optional(),
   "error": zod.object({
@@ -3116,7 +3128,11 @@ export const SetUserRoleResponse = zod.object({
   "trade_name": zod.string().nullish(),
   "owner_name": zod.string().nullish(),
   "city": zod.string().nullish(),
-  "documents": zod.array(zod.string()).optional().describe('Uploaded verification document \/ ID photo URLs.')
+  "documents": zod.array(zod.string()).optional().describe('Uploaded verification document \/ ID photo URLs.'),
+  "fi_license_number": zod.string().nullish(),
+  "fi_license_type": zod.string().nullish(),
+  "fi_regulator": zod.string().nullish(),
+  "fi_registry_number": zod.string().nullish()
 }).nullish().describe('Business \/ FI onboarding payload used for KYC review (activity, names, city, document URLs). Null when the user never submitted business verification.\n')
 }).optional(),
   "error": zod.object({
@@ -3159,7 +3175,11 @@ export const SetUserVerifiedResponse = zod.object({
   "trade_name": zod.string().nullish(),
   "owner_name": zod.string().nullish(),
   "city": zod.string().nullish(),
-  "documents": zod.array(zod.string()).optional().describe('Uploaded verification document \/ ID photo URLs.')
+  "documents": zod.array(zod.string()).optional().describe('Uploaded verification document \/ ID photo URLs.'),
+  "fi_license_number": zod.string().nullish(),
+  "fi_license_type": zod.string().nullish(),
+  "fi_regulator": zod.string().nullish(),
+  "fi_registry_number": zod.string().nullish()
 }).nullish().describe('Business \/ FI onboarding payload used for KYC review (activity, names, city, document URLs). Null when the user never submitted business verification.\n')
 }).optional(),
   "error": zod.object({

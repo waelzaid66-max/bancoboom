@@ -228,7 +228,12 @@ const PLAN_CATALOG: Array<{
   slug: string;
   name: string;
   nameAr: string;
-  audience: "individual" | "dealer" | "company" | "enterprise";
+  audience:
+    | "individual"
+    | "dealer"
+    | "company"
+    | "enterprise"
+    | "financial_institution";
   isBaseline: boolean;
   monthlyPrice: string;
   listingQuota: number | null;
@@ -275,7 +280,10 @@ const PLAN_CATALOG: Array<{
     rankingWeight: "2", features: { analytics: true, bulk_import: true, priority_support: true, dedicated_manager: true }, sortOrder: 4,
   },
   {
-    slug: "bank_featured", name: "Bank Featured", nameAr: "تمييز البنوك", audience: "company",
+    // Audience is the FI role, not `company`: this plan exists for banks /
+    // financiers, and pointing it at `company` is what hid it from the very
+    // accounts it was built for (audit S5).
+    slug: "bank_featured", name: "Bank Featured", nameAr: "تمييز البنوك", audience: "financial_institution",
     isBaseline: false, monthlyPrice: "14999", listingQuota: null, activeListingCap: null,
     boostPrice: "0", cplWhatsapp: "0", cplCall: "0", cplChat: "0", cplFinanceRequest: "0",
     rankingWeight: "3", features: { featured_placement: true, analytics: true, finance_partner: true }, sortOrder: 5,

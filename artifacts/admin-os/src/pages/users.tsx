@@ -175,6 +175,37 @@ function KycReviewDialog({
               ) : null}
             </div>
 
+            {isFi ? (
+              <div>
+                <div className="text-xs text-muted-foreground mb-2">
+                  {t("usersPage.kycFiTitle")}
+                </div>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                  <dt className="text-muted-foreground">
+                    {t("usersPage.kycFiLicenseNumber")}
+                  </dt>
+                  <dd className="font-medium">{details?.fi_license_number || "—"}</dd>
+                  <dt className="text-muted-foreground">
+                    {t("usersPage.kycFiLicenseType")}
+                  </dt>
+                  <dd className="font-medium">{details?.fi_license_type || "—"}</dd>
+                  <dt className="text-muted-foreground">
+                    {t("usersPage.kycFiRegulator")}
+                  </dt>
+                  <dd className="font-medium">{details?.fi_regulator || "—"}</dd>
+                  <dt className="text-muted-foreground">
+                    {t("usersPage.kycFiRegistryNumber")}
+                  </dt>
+                  <dd className="font-medium">{details?.fi_registry_number || "—"}</dd>
+                </dl>
+                {!details?.fi_license_number ? (
+                  <p className="mt-2 text-[11px] text-amber-600">
+                    {t("usersPage.kycFiMissing")}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
             <div>
               <div className="text-xs text-muted-foreground mb-2">
                 {t("usersPage.kycDocuments")} ({docs.length})

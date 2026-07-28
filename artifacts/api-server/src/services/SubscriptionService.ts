@@ -26,7 +26,19 @@ import {
 const PERIOD_DAYS = 30;
 
 /** Roles that may hold paid (business) subscriptions. */
-const BUSINESS_ROLES: readonly UserRole[] = ["dealer", "company", "enterprise"];
+// `financial_institution` is the fourth account type (individual / dealer /
+// company / financial_institution) and is a BUSINESS account for billing.
+// Leaving it out meant an FI signed up successfully and was then locked out of
+// the subscription layer entirely: listPlans() classified banks as non-business
+// and showed them the individual catalog, and startSubscription() rejected every
+// business plan with "This plan isn't available for your account type" — including
+// `bank_featured`, the plan that exists specifically for them.
+const BUSINESS_ROLES: readonly UserRole[] = [
+  "dealer",
+  "company",
+  "enterprise",
+  "financial_institution",
+];
 
 type SubscriptionRow = typeof subscriptions.$inferSelect;
 type SubscribePaymentMethod = "wallet" | EgyptianRail;

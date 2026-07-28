@@ -1514,6 +1514,18 @@ components:
               items:
                 type: string
               description: Uploaded verification document / ID photo URLs.
+            fi_license_number:
+              type: string
+              nullable: true
+            fi_license_type:
+              type: string
+              nullable: true
+            fi_regulator:
+              type: string
+              nullable: true
+            fi_registry_number:
+              type: string
+              nullable: true
 
     AdminListing:
       type: object
@@ -3700,6 +3712,25 @@ paths:
                       items:
                         type: string
                         format: uri
+                    fi_license_number:
+                      type: string
+                      description: >
+                        FI only. Regulator-issued licence number. Collected on the
+                        financial-institution onboarding path so a bank is never
+                        verified on the same evidence as a car dealer.
+                    fi_license_type:
+                      type: string
+                      enum: [bank, financing_company, leasing, microfinance, insurance, other]
+                      description: FI only. Kind of licence held by the institution.
+                    fi_regulator:
+                      type: string
+                      description: >
+                        FI only. Supervising authority that issued the licence
+                        (e.g. Central Bank of Egypt, FRA). A licence number is
+                        meaningless without knowing who issued it.
+                    fi_registry_number:
+                      type: string
+                      description: FI only. Registry/record number held with the regulator.
       responses:
         "200":
           description: Updated user state

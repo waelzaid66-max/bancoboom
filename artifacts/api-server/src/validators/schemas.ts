@@ -918,6 +918,23 @@ export const UpdateMeSchema = z
         // Optional verification document/photo URLs (already uploaded to object
         // storage) submitted for admin review. Stored in companyDetails.
         documents: z.array(z.string().url()).max(8).optional(),
+        // FI-only regulatory identity. Optional here (existing FI accounts
+        // onboarded before these fields existed must still be able to save)
+        // while the FI onboarding form requires them going forward — a bank
+        // must never be verified on the same evidence as a car dealer.
+        fi_license_number: z.string().trim().min(2).max(80).optional(),
+        fi_license_type: z
+          .enum([
+            "bank",
+            "financing_company",
+            "leasing",
+            "microfinance",
+            "insurance",
+            "other",
+          ])
+          .optional(),
+        fi_regulator: z.string().trim().min(2).max(120).optional(),
+        fi_registry_number: z.string().trim().min(2).max(80).optional(),
       })
       .strict()
       .optional(),
