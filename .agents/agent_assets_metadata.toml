@@ -89,3 +89,9 @@ id = "cTP31Q7keqER8-T7i3W_3"
 uri = "file://database_backup.dump.gz"
 type = "unspecified"
 title = "database_backup.dump.gz — نسخة احتياطية مضغوطة للقاعدة الحالية"
+
+[[outputs]]
+id = "b03ZZdPTm4ZvjpqP37WUp"
+uri = "file://expo-qr.png"
+type = "image"
+title = "BANCO Expo Go — QR Code"
