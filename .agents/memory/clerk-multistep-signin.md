@@ -26,6 +26,27 @@ hardcoding one — TOTP and backup codes need no dispatch, while `email_code` /
 `phone_code` must be sent first. Cover TOTP/backup/phone even when the tenant
 currently prefers email, or a user who enrolls an authenticator gets stranded.
 
+## Auto-picking one factor with no escape hatch is ALSO a lockout
+
+Supporting all four strategies is not enough. If the app auto-selects a single
+factor by fixed priority and the MFA screen offers no way to change it, any user
+enrolled in several factors who loses the auto-picked one (wiped authenticator,
+dead SIM) is permanently locked out **even though they still hold a valid
+enrolled factor**.
+
+**Why:** priority order optimises the common case, but the failure case is total
+account loss, and the user has no way to signal "not that one".
+
+**How to apply:** funnel every entry into the MFA step through one
+`selectSecondFactor(strategy)` that dispatches only for `email_code`/`phone_code`
+and clears the previously typed code (or a stale code carries across a switch).
+Keep the auto-pick so single-factor users never see a chooser, but always render
+the *other* enrolled factors from `supportedSecondFactors` as switch options.
+
+**Layout gotcha:** in a big screen component the "other factors" list is computed
+below early returns, so it must be a plain `const`, never `useMemo` — a hook
+there is conditional and breaks hook ordering.
+
 ## Verifying against the live tenant without reading an inbox
 
 You cannot read the emailed OTP, but you can prove the transition end to end:
