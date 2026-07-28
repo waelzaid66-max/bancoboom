@@ -109,6 +109,7 @@ OPENAI_MAX_COMPLETION_TOKENS = "4096"
 CLERK_TELEMETRY_DISABLED = "true"
 EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_live_Y2xlcmsuYmFuY28udG9kYXkk"
 EXPO_PUBLIC_DOMAIN = "banco.today"
+GITHUB_PERSONAL_ACCESS_TOKEN = "اتسجل بالفعل على السيكرتس"
 
 [userenv.development]
 AI_INTEGRATIONS_OPENAI_BASE_URL = "http://localhost:1106/modelfarm/openai"
