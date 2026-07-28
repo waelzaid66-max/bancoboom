@@ -49,23 +49,11 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            {
-              "scheme": "https",
-              "host": "banco.today"
-            },
-            {
-              "scheme": "https",
-              "host": "banco.deals"
-            },
-            {
-              "scheme": "https",
-              "host": "banco.autos"
-            }
+            { "scheme": "https", "host": "banco.today" },
+            { "scheme": "https", "host": "banco.deals" },
+            { "scheme": "https", "host": "banco.autos" }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },
@@ -94,7 +82,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "BANCO uses your location only when you tap “use my location” to set a listing’s place, or to find listings near you."
+          "locationWhenInUsePermission": "BANCO uses your location only when you tap \"use my location\" to set a listing's place, or to find listings near you."
         }
       ],
       [
@@ -104,9 +92,7 @@
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
             "packagingOptions": {
-              "exclude": [
-                "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
-              ]
+              "exclude": ["META-INF/versions/9/OSGI-INF/MANIFEST.MF"]
             }
           },
           "ios": {
@@ -119,12 +105,6 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "extra": {
-      "eas": {
-        "projectId": "45f092c8-52f9-4272-880f-48e6b721126f"
-      }
-    },
-    "owner": "waelzaid",
     "backgroundColor": "#000000"
   }
 }

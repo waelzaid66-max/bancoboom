@@ -344,12 +344,17 @@ function HomeRedirect() {
 }
 
 function ClerkProviderWithRoutes() {
-  // REQUIRED — copy verbatim
-  const clerkPubKey = publishableKeyFromHost(
-    window.location.hostname,
-    import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+  const host = window.location.hostname;
+  const isOfficialDomain = host === 'banco.today' || host.endsWith('.banco.today');
+  if (!isOfficialDomain) return (
+    <div style={{minHeight:'100vh',background:'#000',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'1.25rem',fontFamily:'system-ui',textAlign:'center',padding:'2rem'}}>
+      <div style={{fontSize:'3rem'}}>🏪</div>
+      <h1 style={{margin:0,fontSize:'1.6rem',fontWeight:700}}>BANCO Market</h1>
+      <p style={{color:'#888',margin:0,maxWidth:'320px',lineHeight:1.6}}>هذا التطبيق يعمل فقط على النطاق الرسمي <strong style={{color:'#fff'}}>banco.today</strong></p>
+      <a href="https://banco.today/dealer-os/" style={{color:'#E8002D',textDecoration:'none',border:'1px solid #E8002D',padding:'0.6rem 1.8rem',borderRadius:'8px',fontSize:'0.95rem'}}>افتح على banco.today ←</a>
+    </div>
   );
-  // REQUIRED — copy verbatim
+  const clerkPubKey = publishableKeyFromHost(host, import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
   const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
   if (!clerkPubKey) throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY');
 
