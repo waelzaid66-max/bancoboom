@@ -59,6 +59,17 @@ WebBrowser.maybeCompleteAuthSession();
 type Mode = "signin" | "signup";
 type Step = "form" | "verify" | "reset" | "mfa";
 
+// Order we auto-select a second factor in: on-device factors first (no network
+// round-trip, no delivery failure), then dispatched codes. A user with several
+// enrolled factors can always override this from the MFA screen.
+const MFA_PRIORITY = [
+  "totp",
+  "email_code",
+  "phone_code",
+  "backup_code",
+] as const;
+type MfaStrategy = (typeof MFA_PRIORITY)[number];
+
 const CONSENT_VERSION = "2026-06-11";
 
 function socialIcon(
@@ -136,9 +147,7 @@ export default function ProfileScreen() {
   const [verifyCode, setVerifyCode] = useState("");
   const [resetCode, setResetCode] = useState("");
   const [mfaCode, setMfaCode] = useState("");
-  const [mfaStrategy, setMfaStrategy] = useState<
-    "email_code" | "phone_code" | "totp" | "backup_code" | null
-  >(null);
+  const [mfaStrategy, setMfaStrategy] = useState<MfaStrategy | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [resetSending, setResetSending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -454,36 +463,43 @@ export default function ProfileScreen() {
   // `needs_second_factor` with an email code. Handling only "complete" meant
   // every correct email+password was silently discarded and no real user could
   // ever get in. Each non-complete status must be driven to its next step.
-  const beginSecondFactor = async (): Promise<boolean> => {
-    const supported = signIn.supportedSecondFactors ?? [];
-    const has = (s: string) => supported.some((f) => f.strategy === s);
-    // TOTP / backup codes are read from the user's own device, so there is
-    // nothing to dispatch. Code channels must be sent before we ask for input.
-    if (has("totp")) {
-      setMfaStrategy("totp");
-      setStep("mfa");
-      return true;
-    }
-    if (has("email_code")) {
+
+  // Opens the MFA step on one specific factor. TOTP / backup codes are read
+  // from the user's own device, so there is nothing to dispatch; code channels
+  // must be sent before we ask for input.
+  const selectSecondFactor = async (
+    strategy: MfaStrategy,
+  ): Promise<boolean> => {
+    if (strategy === "email_code") {
       const { error } = await signIn.mfa.sendEmailCode();
       if (error) return false;
-      setMfaStrategy("email_code");
-      setStep("mfa");
-      return true;
-    }
-    if (has("phone_code")) {
+    } else if (strategy === "phone_code") {
       const { error } = await signIn.mfa.sendPhoneCode();
       if (error) return false;
-      setMfaStrategy("phone_code");
-      setStep("mfa");
-      return true;
     }
-    if (has("backup_code")) {
-      setMfaStrategy("backup_code");
-      setStep("mfa");
-      return true;
+    setMfaCode("");
+    setMfaStrategy(strategy);
+    setStep("mfa");
+    return true;
+  };
+
+  // Auto-pick a sensible default so a single-factor user never sees a chooser.
+  // Users with several enrolled factors can switch from the MFA screen — an
+  // auto-pick with no escape hatch locks out anyone who lost that one device.
+  const beginSecondFactor = async (): Promise<boolean> => {
+    const supported = signIn.supportedSecondFactors ?? [];
+    for (const strategy of MFA_PRIORITY) {
+      if (supported.some((f) => f.strategy === strategy)) {
+        return selectSecondFactor(strategy);
+      }
     }
     return false;
+  };
+
+  const handleSwitchMfaMethod = async (strategy: MfaStrategy) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const ok = await selectSecondFactor(strategy);
+    if (!ok) Alert.alert(t("profile.mfaUnavailable"));
   };
 
   const handleSignIn = async () => {
@@ -2553,6 +2569,14 @@ export default function ProfileScreen() {
   // Second-factor step. The live banco.today tenant enforces an email code
   // after the password verifies, so this screen is the difference between a
   // user signing in and hitting a permanent dead end.
+  // Plain const, NOT a useMemo: this sits below early returns, so a hook here
+  // would be conditional and crash the renderer on some paths.
+  const otherSecondFactors = MFA_PRIORITY.filter(
+    (s) =>
+      s !== mfaStrategy &&
+      (signIn.supportedSecondFactors ?? []).some((f) => f.strategy === s),
+  );
+
   if (mode === "signin" && step === "mfa") {
     return (
       <KeyboardAwareScrollViewCompat
@@ -2580,7 +2604,9 @@ export default function ProfileScreen() {
             ? t("profile.mfaTotp")
             : mfaStrategy === "backup_code"
               ? t("profile.mfaBackup")
-              : t("profile.mfaSentEmail", { email })}
+              : mfaStrategy === "phone_code"
+                ? t("profile.mfaSentPhone")
+                : t("profile.mfaSentEmail", { email })}
         </AppText>
 
         <View style={styles.field}>
@@ -2640,6 +2666,34 @@ export default function ProfileScreen() {
               </AppText>
             </AppText>
           </Pressable>
+        )}
+
+        {/* A user who enrolled several factors but lost the auto-selected one
+            (e.g. a wiped authenticator) must be able to fall back to another
+            enrolled factor, or they are permanently locked out of the app. */}
+        {otherSecondFactors.length > 0 && (
+          <View style={styles.field}>
+            <AppText
+              style={[styles.switchText, { color: colors.mutedForeground }]}
+            >
+              {t("profile.mfaOtherMethod")}
+            </AppText>
+            {otherSecondFactors.map((strategy) => (
+              <Pressable
+                key={strategy}
+                onPress={() => handleSwitchMfaMethod(strategy)}
+                disabled={isSigningIn}
+                style={styles.switchBtn}
+                testID={`mfa-switch-${strategy}`}
+              >
+                <AppText
+                  style={[styles.switchLink, { color: colors.primary }]}
+                >
+                  {t(`profile.mfaMethod_${strategy}`)}
+                </AppText>
+              </Pressable>
+            ))}
+          </View>
         )}
 
         <Pressable

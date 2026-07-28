@@ -202,6 +202,54 @@ test("sign-in handles every non-complete Clerk status", () => {
   );
 });
 
+// Auto-selecting one second factor with no escape hatch is itself a lockout:
+// a user enrolled in TOTP + backup_code who wiped their authenticator would
+// have no way to reach the factor they can still use. The MFA screen must let
+// them switch to any OTHER enrolled factor.
+test("users with multiple second factors can switch method", () => {
+  const src = fs.readFileSync(path.join(APP_ROOT, "app", "(tabs)", "profile.tsx"), "utf8");
+  assert.match(
+    src,
+    /selectSecondFactor\s*[=(]/,
+    "a single entry point must open the MFA step on a chosen strategy",
+  );
+  assert.match(
+    src,
+    /handleSwitchMfaMethod/,
+    "the MFA screen must expose a handler for switching factor",
+  );
+  assert.match(
+    src,
+    /otherSecondFactors/,
+    "the other enrolled factors must be offered as alternatives",
+  );
+  // The alternatives list must be derived from what the tenant actually
+  // reports for this user, never a hardcoded menu.
+  assert.match(
+    src,
+    /supportedSecondFactors/,
+    "alternatives must come from signIn.supportedSecondFactors",
+  );
+  // Switching must exclude the strategy already in use, or the list renders a
+  // no-op entry that looks broken.
+  assert.match(
+    src,
+    /!==\s*mfaStrategy/,
+    "the current strategy must be excluded from the alternatives",
+  );
+  // Every strategy the app can auto-pick needs a switch label, or the button
+  // renders a raw i18n key.
+  const i18n = fs.readFileSync(path.join(APP_ROOT, "constants", "i18n.ts"), "utf8");
+  for (const s of ["totp", "email_code", "phone_code", "backup_code"]) {
+    const occurrences = i18n.split(`mfaMethod_${s}:`).length - 1;
+    assert.equal(
+      occurrences,
+      2,
+      `mfaMethod_${s} must be translated in BOTH en and ar (found ${occurrences})`,
+    );
+  }
+});
+
 test("social provider resolution fails closed", () => {
   const src = fs.readFileSync(path.join(APP_ROOT, "hooks", "useSocialProviders.ts"), "utf8");
   assert.match(
