@@ -33,7 +33,14 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   ...(assetCdnOrigin ? { assetPrefix: assetCdnOrigin } : {}),
   // Allow Replit's proxied preview (cross-origin iframe) to load /_next/* assets
-  allowedDevOrigins: ["*"],
+  allowedDevOrigins: [
+    "*",
+    "127.0.0.1",
+    "localhost",
+    "*.replit.dev",
+    "*.replit.app",
+    ...(process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(",") : []),
+  ],
   // Allow Server Actions from Replit proxy (port mismatch in x-forwarded-host vs origin)
   experimental: {
     serverActions: {

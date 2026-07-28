@@ -1,3 +1,5 @@
+- [Thread exhaustion / pnpm fork bomb](replit-thread-exhaustion-pnpm.md) — fork:EAGAIN everywhere = 1024-thread cap from pnpm self-update recursion; keep manage-package-manager-versions=false in .npmrc; rescue via bash builtins + kill -9 -PGID
+- [Package firewall CVE blocks](package-firewall-cve-blocks.md) — firewall 403 can be Socket "Critical CVE" not release-age; curl-probe versions, pin first clean one in overrides (tar>=7.5.19)
 - [B.4 release state](b4-release-state.md) — B.4 tagged ce2d7a7; architect CONFIRM-B4:YES; deleteServingUrls provider-aware; Claude PRs merged; OPENAI+RESEND rotated; open items listed
 - [BANCO AI assistant env fix](banco-ai-env-fix.md) — OPENAI_API_KEY dummy env var in shared overrides real secret; AI_INTEGRATIONS_OPENAI_BASE_URL localhost kills prod; both must be absent from shared/prod; dev-only overrides acceptable
 - [BANCO email completeness](banco-email-completeness.md) — message/new_match/price_drop email functions added; all 9 NotificationCategory types now have email templates; AlertService+ConversationService wire fire-and-forget via isEmailChannelEnabled gate
